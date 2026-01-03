@@ -3,16 +3,23 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from contextlib import asynccontextmanager
 
+from app.database import Database
+from app.core import app_settings
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    Database.connect(app_settings.database_url)
+    Database.init()
     yield
+    Database.disconnect()
 
 
 app: FastAPI = FastAPI(
     title="Seacom-App",
     version="0.1.0",
     description="",
+    lifespan=lifespan
 )
 app.add_middleware(
     CORSMiddleware,
