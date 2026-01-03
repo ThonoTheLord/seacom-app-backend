@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 
 from app.database import Database
 from app.core import app_settings
+from app.api import router
 
 
 @asynccontextmanager
@@ -28,6 +29,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.include_router(router)
 
 
 @app.get("/", include_in_schema=False, status_code=307)

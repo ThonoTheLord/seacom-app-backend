@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 from uuid import uuid4, UUID
 from datetime import datetime
 
@@ -63,3 +63,10 @@ class TokenData(BaseModel):
                 "iat": "2024-01-01T00:00:00"
             }
         }
+
+
+class LoginForm(BaseModel):
+    """"""
+
+    email: EmailStr = Field(examples=["moses@samotelecoms.co.za"])
+    password: str = Field(examples=["Password123"])

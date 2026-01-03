@@ -12,10 +12,10 @@ class AppSettings(BaseSettings):
     DB_NAME: str = ""
 
     # Security
-    JWT_TOKEN_EXPIRE_MINUTES = 0
-    JWT_REFRESH_TOKEN_EXPIRE_DAYS = 0
-    JWT_SECRET_KEY = ""
-    JWT_ALGORITH = ""
+    JWT_TOKEN_EXPIRE_MINUTES: int = 0
+    JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 0
+    JWT_SECRET_KEY: str = ""
+    JWT_ALGORITH: str = ""
 
     @property
     def database_url(self) -> str:
