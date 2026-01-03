@@ -34,6 +34,7 @@ An application to allow technicians to submit their reports and noc oporators to
     DB_USER="postgres"
     DB_PASSWORD="use the password you set here"
     DB_PORT="5432"
+    DB_NAME="seacom_app_db"
     ```
 
 ## 3. Run the application
