@@ -12,7 +12,9 @@ class BadRequestException(HTTPException):
         headers: Optional dictionary of HTTP headers to include in the response
     """
 
-    def __init__(self, message: str = "bad request", headers: dict[str, str] | None = None) -> None:
+    def __init__(
+        self, message: str = "bad request", headers: dict[str, str] | None = None
+    ) -> None:
         super().__init__(status.HTTP_400_BAD_REQUEST, message, headers)
 
 
@@ -26,7 +28,9 @@ class UnauthorizedException(HTTPException):
         headers: Optional dictionary of HTTP headers to include in the response
     """
 
-    def __init__(self, message: str = "unauthorized", headers: dict[str, str] | None = None) -> None:
+    def __init__(
+        self, message: str = "unauthorized", headers: dict[str, str] | None = None
+    ) -> None:
         super().__init__(status.HTTP_401_UNAUTHORIZED, message, headers)
 
 
@@ -41,7 +45,9 @@ class ForbiddenException(HTTPException):
         headers: Optional dictionary of HTTP headers to include in the response
     """
 
-    def __init__(self, message: str = "forbidden", headers: dict[str, str] | None = None) -> None:
+    def __init__(
+        self, message: str = "forbidden", headers: dict[str, str] | None = None
+    ) -> None:
         super().__init__(status.HTTP_403_FORBIDDEN, message, headers)
 
 
@@ -55,7 +61,9 @@ class NotFoundException(HTTPException):
         headers: Optional dictionary of HTTP headers to include in the response
     """
 
-    def __init__(self, message: str = "not found", headers: dict[str, str] | None = None) -> None:
+    def __init__(
+        self, message: str = "not found", headers: dict[str, str] | None = None
+    ) -> None:
         super().__init__(status.HTTP_404_NOT_FOUND, message, headers)
 
 
@@ -69,7 +77,9 @@ class RequestTimeoutException(HTTPException):
         headers: Optional dictionary of HTTP headers to include in the response
     """
 
-    def __init__(self, message: str = "request timeout", headers: dict[str, str] | None = None) -> None:
+    def __init__(
+        self, message: str = "request timeout", headers: dict[str, str] | None = None
+    ) -> None:
         super().__init__(status.HTTP_408_REQUEST_TIMEOUT, message, headers)
 
 
@@ -84,7 +94,9 @@ class ConflictException(HTTPException):
         headers: Optional dictionary of HTTP headers to include in the response
     """
 
-    def __init__(self, message: str = "conflict", headers: dict[str, str] | None = None) -> None:
+    def __init__(
+        self, message: str = "conflict", headers: dict[str, str] | None = None
+    ) -> None:
         super().__init__(status.HTTP_409_CONFLICT, message, headers)
 
 
@@ -99,7 +111,9 @@ class TooManyRequestsException(HTTPException):
         headers: Optional dictionary of HTTP headers to include in the response
     """
 
-    def __init__(self, message: str = "too many requests", headers: dict[str, str] | None = None) -> None:
+    def __init__(
+        self, message: str = "too many requests", headers: dict[str, str] | None = None
+    ) -> None:
         super().__init__(status.HTTP_429_TOO_MANY_REQUESTS, message, headers)
 
 
@@ -114,7 +128,11 @@ class InternalServerErrorException(HTTPException):
         headers: Optional dictionary of HTTP headers to include in the response
     """
 
-    def __init__(self, message: str = "internal server error", headers: dict[str, str] | None = None) -> None:
+    def __init__(
+        self,
+        message: str = "internal server error",
+        headers: dict[str, str] | None = None,
+    ) -> None:
         super().__init__(status.HTTP_500_INTERNAL_SERVER_ERROR, message, headers)
 
 
@@ -129,7 +147,9 @@ class NotImplementedException(HTTPException):
         headers: Optional dictionary of HTTP headers to include in the response
     """
 
-    def __init__(self, message: str = "not implemented", headers: dict[str, str] | None = None) -> None:
+    def __init__(
+        self, message: str = "not implemented", headers: dict[str, str] | None = None
+    ) -> None:
         super().__init__(status.HTTP_501_NOT_IMPLEMENTED, message, headers)
 
 
@@ -144,5 +164,9 @@ class InsufficientStorageException(HTTPException):
         headers: Optional dictionary of HTTP headers to include in the response
     """
 
-    def __init__(self, message: str = "insufficient storage", headers: dict[str, str] | None = None) -> None:
+    def __init__(
+        self,
+        message: str = "insufficient storage",
+        headers: dict[str, str] | None = None,
+    ) -> None:
         super().__init__(status.HTTP_507_INSUFFICIENT_STORAGE, message, headers)
