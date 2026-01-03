@@ -7,3 +7,9 @@ class UserRole(StrEnum):
     MANAGER = "manager"
     TECHNICIAN = "technician"
     NOC = "noc"
+
+
+class UserStatus(StrEnum):
+    """"""
+    ACTIVE = "active"
+    DISABLED = "disabled"
