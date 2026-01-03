@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 from uuid import uuid4, UUID
+from datetime import datetime
 
 from app.utils.enums import UserRole
 
@@ -20,10 +21,45 @@ class Token(BaseModel):
 
 
 class TokenData(BaseModel):
-    """"""
+    """
+    Data model representing the decoded JWT token payload.
+    
+    This model contains all the essential information extracted from a JWT token,
+    including user identification, role, expiration time, and token type.
+    """
 
-    user_id: UUID = Field(description="the current user's id", examples=[str(uuid4())])
-    exp: int = Field(
-        description="expiration time of the token in unix timestamp format", examples=[1700000000]
+    user_id: UUID = Field(
+        description="The unique identifier of the authenticated user",
+        examples=[str(uuid4())]
     )
-    role: UserRole = Field(description="the current user's role")
+    role: UserRole = Field(
+        description="The role of the authenticated user (e.g., admin, noc, technician)",
+        examples=[UserRole.ADMIN]
+    )
+    exp: datetime | None = Field(
+        default=None,
+        description="Expiration datetime of the token in UTC",
+        examples=[datetime(2024, 12, 31, 23, 59, 59)]
+    )
+    token_type: str | None = Field(
+        default=None,
+        description="Type of token: 'access' for access tokens, 'refresh' for refresh tokens",
+        examples=["access", "refresh"]
+    )
+    iat: datetime | None = Field(
+        default=None,
+        description="Issued at datetime of the token in UTC",
+        examples=[datetime(2024, 1, 1, 0, 0, 0)]
+    )
+
+    class Config:
+        """Pydantic model configuration."""
+        json_schema_extra = {
+            "example": {
+                "user_id": "123e4567-e89b-12d3-a456-426614174000",
+                "role": "user",
+                "exp": "2024-12-31T23:59:59",
+                "token_type": "access",
+                "iat": "2024-01-01T00:00:00"
+            }
+        }

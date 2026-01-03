@@ -11,6 +11,12 @@ class AppSettings(BaseSettings):
     DB_PORT: int = 0
     DB_NAME: str = ""
 
+    # Security
+    JWT_TOKEN_EXPIRE_MINUTES = 0
+    JWT_REFRESH_TOKEN_EXPIRE_DAYS = 0
+    JWT_SECRET_KEY = ""
+    JWT_ALGORITH = ""
+
     @property
     def database_url(self) -> str:
         """"""
