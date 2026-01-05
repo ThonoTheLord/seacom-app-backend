@@ -44,10 +44,12 @@ class User(BaseDB, BaseUser, table=True):
     def activate(self) -> None:
         """"""
         self.status = UserStatus.ACTIVE
+        self.touch()
 
     def disable(self) -> None:
         """"""
         self.status = UserStatus.DISABLED
+        self.touch()
     
     def is_active(self) -> bool:
         """"""
