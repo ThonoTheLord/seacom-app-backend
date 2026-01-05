@@ -13,3 +13,8 @@ class UserStatus(StrEnum):
     """"""
     ACTIVE = "active"
     DISABLED = "disabled"
+
+
+class TaskType(StrEnum):
+    RHS = "remote-hand-support"
+    ROUTINE_MAINTENANCE = "routine-maintenance"
