@@ -1,5 +1,5 @@
 from uuid import UUID, uuid4
-from sqlmodel import SQLModel, Column, DateTime, Field
+from sqlmodel import SQLModel, DateTime, Field
 from abc import ABC
 from datetime import datetime
 
@@ -17,19 +17,21 @@ class BaseDB(SQLModel, ABC):
     )
     created_at: datetime = Field(
         default_factory=utcnow,
-        sa_column=Column(DateTime(timezone=True), nullable=False),
+        sa_type=DateTime(timezone=True), # type: ignore
+        nullable=False,
         description="date and time with a timezone the record was created.",
         schema_extra={"examples": {str(utcnow())}},
     )
     updated_at: datetime = Field(
         default_factory=utcnow,
-        sa_column=Column(DateTime(timezone=True), nullable=False),
+        sa_type=DateTime(timezone=True), # type: ignore
+        nullable=False,
         description="date and time with a timezone the record was last updated.",
         schema_extra={"examples": {str(utcnow())}},
     )
     deleted_at: datetime | None = Field(
         default=None,
-        sa_column=Column(DateTime(timezone=True)),
+        sa_type=DateTime(timezone=True), # type: ignore
         description="date and time with a timezone the record was deleted.",
         schema_extra={"examples": {str(utcnow()), None}},
     )
