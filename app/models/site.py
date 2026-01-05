@@ -1,12 +1,18 @@
-from sqlmodel import SQLModel, Field
+from sqlmodel import SQLModel, Field, Relationship
+from typing import TYPE_CHECKING, List
 
 from .base import BaseDB
 from app.utils.enums import Region
+
+if TYPE_CHECKING:
+    from .task import Task
 
 
 class BaseSite(SQLModel):
     name: str = Field(description="", nullable=False, max_length=100)
     region: Region = Field(description="", nullable=False)
+
+    tasks: List['Task'] = Relationship(back_populates="site")
 
 
 class Site(BaseDB, BaseSite, table=True):
