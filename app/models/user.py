@@ -21,7 +21,7 @@ class BaseUser(SQLModel, ABC):
         description="The last name of the user",
         schema_extra={"examples": {"Kubeka", "Smith"}},
     )
-    email: EmailStr = Field(nullable=False, index=True)
+    email: EmailStr = Field(nullable=False, index=True, schema_extra={"examples": {"moses@samotelecoms.co.za"}})
     role: UserRole = Field(description="The role of the user in the system")
 
 
@@ -48,6 +48,10 @@ class User(BaseDB, BaseUser, table=True):
     def disable(self) -> None:
         """"""
         self.status = UserStatus.DISABLED
+    
+    def is_active(self) -> bool:
+        """"""
+        return self.status == UserStatus.ACTIVE
 
 
 class UserCreate(BaseUser):

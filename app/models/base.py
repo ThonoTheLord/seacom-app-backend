@@ -13,7 +13,7 @@ class BaseDB(SQLModel, ABC):
         default_factory=uuid4,
         primary_key=True,
         description="unique database identifier",
-        schema_extra={"examples": str(uuid4())},
+        schema_extra={"examples": {str(uuid4())}},
     )
     created_at: datetime = Field(
         default_factory=utcnow,

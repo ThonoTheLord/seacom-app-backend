@@ -7,7 +7,7 @@ from app.core import SecurityUtils
 from app.models import User, Token, TokenData, LoginForm
 from app.exceptions.http import UnauthorizedException, NotFoundException
 
-oauth = OAuth2PasswordBearer("/auth/login")
+oauth = OAuth2PasswordBearer("/api/v1/auth/login")
 
 
 class _AuthService:
