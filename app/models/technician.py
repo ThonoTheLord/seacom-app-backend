@@ -1,6 +1,6 @@
 from uuid import UUID
 from pydantic import StringConstraints
-from typing import Annotated, TYPE_CHECKING
+from typing import Annotated, TYPE_CHECKING, List
 from sqlmodel import SQLModel, Field, Relationship
 from abc import ABC
 
@@ -14,6 +14,7 @@ SA_ID = Annotated[str, StringConstraints(
 
 if TYPE_CHECKING:
     from .user import User
+    from .task import Task
 
 
 class BaseTechnician(SQLModel, ABC):
@@ -26,6 +27,7 @@ class Technician(BaseDB, BaseTechnician, table=True):
     __tablename__ = "technicians" # type: ignore
 
     user: 'User' = Relationship()
+    tasks: List['Task'] = Relationship(back_populates="technician")
 
 
 class TechnicianCreate(BaseTechnician): ...
