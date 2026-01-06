@@ -62,3 +62,33 @@ def delete_task(
 ) -> None:
     """"""
     service.delete_task(task_id, session)
+
+
+@router.patch("/{task_id}/start", response_model=TaskResponse, status_code=200)
+def start_task(
+    task_id: UUID,
+    service: TaskService,
+    session: Session
+) -> TaskResponse:
+    """"""
+    return service.start_task(task_id, session)
+
+
+@router.patch("/{task_id}/complete", response_model=TaskResponse, status_code=200)
+def complete_task(
+    task_id: UUID,
+    service: TaskService,
+    session: Session
+) -> TaskResponse:
+    """"""
+    return service.complete_task(task_id, session)
+
+
+@router.patch("/{task_id}/fail", response_model=TaskResponse, status_code=200)
+def fail_task(
+    task_id: UUID,
+    service: TaskService,
+    session: Session
+) -> TaskResponse:
+    """"""
+    return service.fail_task(task_id, session)

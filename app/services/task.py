@@ -103,6 +103,42 @@ class _TaskService:
         task = self._get_task(task_id, session)
         task.soft_delete()
         session.commit()
+    
+    def start_task(self, task_id: UUID, session: Session) -> TaskResponse:
+        """"""
+        task = self._get_task(task_id, session)
+        task.start()
+        try:
+            session.commit()
+            session.refresh(task)
+            return self.task_to_response(task)
+        except Exception as e:
+            session.rollback()
+            raise InternalServerErrorException(f"Unexpected error starting task: {e}")
+    
+    def complete_task(self, task_id: UUID, session: Session) -> TaskResponse:
+        """"""
+        task = self._get_task(task_id, session)
+        task.complete()
+        try:
+            session.commit()
+            session.refresh(task)
+            return self.task_to_response(task)
+        except Exception as e:
+            session.rollback()
+            raise InternalServerErrorException(f"Unexpected error completing task: {e}")
+    
+    def fail_task(self, task_id: UUID, session: Session) -> TaskResponse:
+        """"""
+        task = self._get_task(task_id, session)
+        task.fail()
+        try:
+            session.commit()
+            session.refresh(task)
+            return self.task_to_response(task)
+        except Exception as e:
+            session.rollback()
+            raise InternalServerErrorException(f"Unexpected error failing task: {e}")
 
     def _get_task(self, task_id: UUID, session: Session) -> Task:
         statement = select(Task).where(Task.id == task_id, Task.deleted_at.is_(None))  # type: ignore
