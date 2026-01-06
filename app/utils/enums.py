@@ -60,3 +60,9 @@ class ReportStatus(StrEnum):
     PENDING = "pending"
     STARTED = "started"
     COMPLETED = "completed"
+
+
+class NotificationPriority(StrEnum):
+    NORMAL = "normal"
+    HIGH = "high"
+    CRITICAL = "critical"
