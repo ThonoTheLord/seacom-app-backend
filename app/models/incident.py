@@ -59,6 +59,8 @@ class IncidentUpdate(SQLModel):
 
 
 class IncidentResponse(BaseDB, BaseIncident):
+    status: IncidentStatus = Field(default=IncidentStatus.OPEN)
+    resolved_at: datetime | None = Field(default=None)
     site_name: str = Field(default="", description="")
     technician_fullname: str = Field(default="", description="")
     num_attachments: int = Field(default=0, ge=0, description="")
