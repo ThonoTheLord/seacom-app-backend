@@ -47,3 +47,4 @@ class AccessRequestStatus(StrEnum):
     REQUESTED = "requested"
     REJECTED = "rejected"
     APPROVED = "approved"
+    EXPIRED = "expired"
