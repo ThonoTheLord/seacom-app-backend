@@ -7,6 +7,7 @@ from .task import Task, TaskCreate, TaskUpdate, TaskResponse
 from .incident import Incident, IncidentCreate, IncidentUpdate, IncidentResponse
 from .access_request import AccessRequest, AccessRequestCreate, AccessRequestUpdate, AccessRequestResponse
 from .report import Report, ReportCreate, ReportUpdate, ReportResponse
+from .notification import Notification, NotificationCreate, NotificationResponse
 
 __all__ = [
     "BaseDB",
@@ -43,4 +44,7 @@ __all__ = [
     "ReportCreate",
     "ReportResponse",
     "ReportUpdate",
+    "Notification",
+    "NotificationCreate",
+    "NotificationResponse",
 ]

@@ -16,7 +16,7 @@ class BaseReport(SQLModel):
     data: dict[str, Any] = Field(nullable=False, sa_type=JSONB)
     attachments: dict[str, str] | None = Field(default=None, sa_type=JSONB)
     technician_id: UUID = Field(foreign_key="technicians.id")
-    task_id: UUID = Field(foreign_key="task.id")
+    task_id: UUID = Field(foreign_key="tasks.id")
 
 
 class Report(BaseDB, BaseReport, table=True):

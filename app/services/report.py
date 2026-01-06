@@ -44,6 +44,7 @@ class _ReportService:
         session: Session,
         report_type: ReportType | None = None,
         status: ReportStatus | None = None,
+        technician_id: UUID | None = None,
         offset: int = 0,
         limit: int = 100,
     ) -> List[ReportResponse]:
@@ -53,6 +54,8 @@ class _ReportService:
             statement = statement.where(Report.report_type == report_type)
         if status is not None:
             statement = statement.where(Report.status == status)
+        if technician_id is not None:
+            statement = statement.where(Report.technician_id == technician_id)
 
         statement = statement.offset(offset).limit(limit)
         reports = session.exec(statement).all()

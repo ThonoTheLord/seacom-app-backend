@@ -1,0 +1,85 @@
+from fastapi import APIRouter, Query
+from typing import List
+from uuid import UUID
+
+from app.models import ReportCreate, ReportUpdate, ReportResponse
+from app.services import ReportService
+from app.database import Session
+from app.utils.enums import ReportStatus, ReportType
+
+router = APIRouter(prefix="/reports", tags=["Reports"])
+
+
+@router.post("/", response_model=ReportResponse, status_code=201)
+def create_report(
+    payload: ReportCreate,
+    service: ReportService,
+    session: Session
+) -> ReportResponse:
+    """"""
+    return service.create_report(payload, session)
+
+
+@router.get("/", response_model=List[ReportResponse], status_code=200)
+def read_reports(
+    service: ReportService,
+    session: Session,
+    report_type: ReportType | None = Query(None),
+    status: ReportStatus | None = Query(None),
+    technician_id: UUID | None = Query(None),
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=100, le=1000)
+) -> List[ReportResponse]:
+    """"""
+    return service.read_reports(session, report_type, status, technician_id, offset, limit)
+
+
+@router.get("/{report_id}", response_model=ReportResponse, status_code=200)
+def read_report(
+    report_id: UUID,
+    service: ReportService,
+    session: Session
+) -> ReportResponse:
+    """"""
+    return service.read_report(report_id, session)
+
+
+@router.patch("/{report_id}", response_model=ReportResponse, status_code=200)
+def update_report(
+    report_id: UUID,
+    payload: ReportUpdate,
+    service: ReportService,
+    session: Session,
+) -> ReportResponse:
+    """"""
+    return service.update_report(report_id, payload, session)
+
+
+@router.delete("/{report_id}", status_code=204)
+def delete_report(
+    report_id: UUID,
+    service: ReportService,
+    session: Session
+) -> None:
+    """"""
+    service.delete_report(report_id, session)
+
+
+@router.patch("/{report_id}/start", response_model=ReportResponse, status_code=200)
+def start_report(
+    report_id: UUID,
+    service: ReportService,
+    session: Session
+) -> ReportResponse:
+    """"""
+    return service.start_report(report_id, session)
+
+
+@router.patch("/{report_id}/complete", response_model=ReportResponse, status_code=200)
+def complete_report(
+    report_id: UUID,
+    service: ReportService,
+    session: Session
+) -> ReportResponse:
+    """"""
+    return service.complete_report(report_id, session)

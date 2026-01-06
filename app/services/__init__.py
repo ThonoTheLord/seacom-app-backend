@@ -5,6 +5,9 @@ from .site import SiteService
 from .task import TaskService
 from .incident import IncidentService
 from .report import ReportService
+from .notification import NotificationService
 
 __all__ = ["AuthService", "CurrentUser", "UserService", "TechnicianService",
-           "SiteService", "TaskService", "IncidentService", "ReportService"]
+           "SiteService", "TaskService", "IncidentService", "ReportService",
+           "NotificationService"
+           ]

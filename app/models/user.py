@@ -1,9 +1,13 @@
-from sqlmodel import SQLModel, Index, Field
+from sqlmodel import SQLModel, Index, Field, Relationship
 from abc import ABC
 from pydantic import EmailStr
+from typing import TYPE_CHECKING, List
 
 from .base import BaseDB
 from app.utils.enums import UserRole, UserStatus
+
+if TYPE_CHECKING:
+    from .notification import Notification
 
 
 class BaseUser(SQLModel, ABC):
@@ -40,6 +44,8 @@ class User(BaseDB, BaseUser, table=True):
 
     password_hash: str = Field(nullable=False)
     status: UserStatus = Field(default=UserStatus.ACTIVE, nullable=False, index=True)
+
+    notifications: List['Notification'] = Relationship(back_populates="user")
 
     def activate(self) -> None:
         """"""
@@ -97,4 +103,4 @@ class UserStatusUpdate(SQLModel):
 class UserResponse(BaseDB, BaseUser):
     """"""
 
-    ...
+    status: UserStatus
