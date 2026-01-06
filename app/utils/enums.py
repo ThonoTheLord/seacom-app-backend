@@ -48,3 +48,15 @@ class AccessRequestStatus(StrEnum):
     REJECTED = "rejected"
     APPROVED = "approved"
     EXPIRED = "expired"
+
+
+class ReportType(StrEnum):
+    DIESIL = "diesil"
+    GENERAL = "general"
+    REPEATER = "repeater"
+    ROUTINE_DRIVE = "routine-drive"
+
+class ReportStatus(StrEnum):
+    PENDING = "pending"
+    STARTED = "started"
+    COMPLETED = "completed"
