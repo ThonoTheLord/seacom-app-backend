@@ -12,11 +12,11 @@ class BaseSite(SQLModel):
     name: str = Field(description="", nullable=False, max_length=100)
     region: Region = Field(description="", nullable=False)
 
-    tasks: List['Task'] = Relationship(back_populates="site")
-
 
 class Site(BaseDB, BaseSite, table=True):
-    __tablename__ = "sites" # type: ignore
+    __tablename__ = "sites"  # type: ignore
+
+    tasks: List['Task'] = Relationship(back_populates="site")
 
 
 class SiteCreate(BaseSite): ...

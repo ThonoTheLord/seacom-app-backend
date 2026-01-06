@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 from datetime import datetime
 from sqlmodel import SQLModel, Field, DateTime, Column, Relationship
 from sqlalchemy.dialects.postgresql import JSONB
+from abc import ABC
 
 from .base import BaseDB
 from app.utils.enums import TaskStatus, TaskType
@@ -13,23 +14,25 @@ if TYPE_CHECKING:
     from technician import Technician
 
 
-class BaseTask(SQLModel):
+class BaseTask(SQLModel, ABC):
     seacom_ref: str | None = Field(default=None, max_length=100)
     description: str = Field(max_length=2000, nullable=False)
     start_time: datetime = Field(sa_type=DateTime(timezone=True), nullable=False) # type: ignore
     end_time: datetime = Field(sa_type=DateTime(timezone=True), nullable=False) # type: ignore
     task_type: TaskType = Field(nullable=False)
-    attachments: dict[str, str] | None = Field(default=None, sa_column=Column(JSONB))
+    attachments: dict[str, str] | None = Field(default=None, sa_type=JSONB)
     site_id: UUID = Field(foreign_key="sites.id")
     technician_id: UUID = Field(foreign_key="technicians.id")
 
-    site: 'Site' = Relationship(back_populates="tasks")
-    technician: 'Technician' = Relationship(back_populates="tasks")
-
 
 class Task(BaseDB, BaseTask, table=True):
+    __tablename__ = "tasks" # type: ignore
+
     status: TaskStatus = Field(default=TaskStatus.PENDING, nullable=False)
     completed_at: datetime | None = Field(default=None, sa_type=DateTime(timezone=True)) # type: ignore
+
+    site: 'Site' = Relationship(back_populates="tasks")
+    technician: 'Technician' = Relationship(back_populates="tasks")
 
     def start(self) -> None:
         """"""
