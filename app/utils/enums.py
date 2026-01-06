@@ -41,3 +41,9 @@ class IncidentStatus(StrEnum):
     OPEN = "open"
     IN_PROGRESS = "in-progress"
     RESOLVED = "resolved"
+
+
+class AccessRequestStatus(StrEnum):
+    REQUESTED = "requested"
+    REJECTED = "rejected"
+    APPROVED = "approved"
