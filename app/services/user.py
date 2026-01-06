@@ -17,7 +17,7 @@ from app.core import SecurityUtils
 
 class _UserService:
     def user_to_response(self, user: User) -> UserResponse:
-        return UserResponse(**user.model_dump())
+        return UserResponse(**user.model_dump(exclude={"password_hash"}))
 
     def create_user(self, data: UserCreate, session: Session) -> UserResponse:
         user = User(
