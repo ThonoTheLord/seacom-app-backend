@@ -35,3 +35,9 @@ class TaskStatus(StrEnum):
     STARTED = "started"
     COMPLETED = "completed"
     FAILED = "failed"
+
+
+class IncidentStatus(StrEnum):
+    OPEN = "open"
+    IN_PROGRESS = "in-progress"
+    RESOLVED = "resolved"
