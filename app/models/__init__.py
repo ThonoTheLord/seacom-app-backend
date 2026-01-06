@@ -6,6 +6,7 @@ from .site import Site, SiteCreate, SiteUpdate, SiteResponse
 from .task import Task, TaskCreate, TaskUpdate, TaskResponse
 from .incident import Incident, IncidentCreate, IncidentUpdate, IncidentResponse
 from .access_request import AccessRequest, AccessRequestCreate, AccessRequestUpdate, AccessRequestResponse
+from .report import Report, ReportCreate, ReportUpdate, ReportResponse
 
 __all__ = [
     "BaseDB",
@@ -37,5 +38,9 @@ __all__ = [
     "AccessRequest",
     "AccessRequestCreate",
     "AccessRequestResponse",
-    "AccessRequestUpdate"
+    "AccessRequestUpdate",
+    "Report",
+    "ReportCreate",
+    "ReportResponse",
+    "ReportUpdate",
 ]
