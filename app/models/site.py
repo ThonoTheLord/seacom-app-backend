@@ -6,6 +6,7 @@ from app.utils.enums import Region
 
 if TYPE_CHECKING:
     from .task import Task
+    from .access_request import AccessRequest
 
 
 class BaseSite(SQLModel):
@@ -17,6 +18,7 @@ class Site(BaseDB, BaseSite, table=True):
     __tablename__ = "sites"  # type: ignore
 
     tasks: List['Task'] = Relationship(back_populates="site")
+    access_requests: List['AccessRequest'] = Relationship(back_populates="site")
 
 
 class SiteCreate(BaseSite): ...
