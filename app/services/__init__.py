@@ -4,6 +4,7 @@ from .technician import TechnicianService
 from .site import SiteService
 from .task import TaskService
 from .incident import IncidentService
+from .report import ReportService
 
 __all__ = ["AuthService", "CurrentUser", "UserService", "TechnicianService",
-           "SiteService", "TaskService", "IncidentService"]
+           "SiteService", "TaskService", "IncidentService", "ReportService"]
