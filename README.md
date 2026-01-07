@@ -35,6 +35,12 @@ An application to allow technicians to submit their reports and noc oporators to
     DB_PASSWORD="use the password you set here"
     DB_PORT="5432"
     DB_NAME="seacom_app_db"
+
+    # Security
+    JWT_TOKEN_EXPIRE_MINUTES=30
+    JWT_REFRESH_TOKEN_EXPIRE_DAYS=7
+    JWT_SECRET_KEY=""
+    JWT_ALGORITH="HS256"
     ```
 
 ## 3. Run the application

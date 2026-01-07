@@ -17,8 +17,8 @@ class BaseAccessRequest(SQLModel, ABC):
     technician_id: UUID = Field(foreign_key="technicians.id")
     site_id: UUID = Field(foreign_key="sites.id")
     description: str = Field(nullable=False, max_length=2000)
-    start: datetime = Field(nullable=False, sa_type=DateTime(timezone=True)) # type: ignore
-    end: datetime = Field(nullable=False, sa_type=DateTime(timezone=True)) # type: ignore
+    start_time: datetime = Field(nullable=False, sa_type=DateTime(timezone=True)) # type: ignore
+    end_time: datetime = Field(nullable=False, sa_type=DateTime(timezone=True)) # type: ignore
 
 
 class AccessRequest(BaseDB, BaseAccessRequest, table=True):
@@ -47,7 +47,7 @@ class AccessRequestCreate(BaseAccessRequest): ...
 
 class AccessRequestUpdate(SQLModel):
     description: str | None = Field(default=None, max_length=2000)
-    start: datetime | None = Field(default=None)
+    start_time: datetime | None = Field(default=None)
 
 
 class AccessRequestResponse(BaseDB, BaseAccessRequest):
