@@ -28,6 +28,7 @@ class Region(StrEnum):
     NORTHERN_CAPE = "northern-cape"
     WESTERN_CAPE = "western-cape"
     FREE_STATE = "free-state"
+    NORTH_WEST = "north-west"
 
 
 class TaskStatus(StrEnum):
