@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends
 from fastapi.security import OAuth2PasswordRequestForm
+from typing import Annotated
 
 from app.models import Token, TokenData, LoginForm
 from app.services import AuthService, CurrentUser
@@ -9,7 +10,11 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
 @router.post("/login", response_model=Token, status_code=201)
-def login(service: AuthService, session: Session, form: OAuth2PasswordRequestForm = Depends()) -> Token:
+def login(
+    service: AuthService,
+    session: Session,
+    form: Annotated[OAuth2PasswordRequestForm, Depends()],
+    ) -> Token:
     """"""
     return service.authenticate(LoginForm(email=form.username, password=form.password), session)
 

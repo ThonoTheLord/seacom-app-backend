@@ -1,6 +1,7 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.exceptions import RequestValidationError
 from contextlib import asynccontextmanager
 
 from app.database import Database
@@ -36,3 +37,13 @@ app.include_router(router)
 def root() -> RedirectResponse:
     """"""
     return RedirectResponse(app.docs_url or "/docs")
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    print("Validation error:", exc.errors())
+    print("Request body:", exc.body)
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors()}
+    )

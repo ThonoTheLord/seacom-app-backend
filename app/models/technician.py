@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
 class BaseTechnician(SQLModel, ABC):
     phone: str = Field(nullable=False, max_length=13, min_length=10, description="", unique=True)
-    id_no: SA_ID = Field(nullable=False, unique=True, description="")
+    id_no: str = Field(nullable=False, unique=True, description="")
     user_id: UUID = Field(nullable=False, foreign_key="users.id")
 
 
