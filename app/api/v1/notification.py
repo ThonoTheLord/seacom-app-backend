@@ -51,3 +51,13 @@ def delete_notification(
 ) -> None:
     """"""
     service.delete_notification(notification_id, session)
+
+
+@router.patch("/{notification_id}/read", response_model=NotificationResponse, status_code=200)
+def mark_as_read(
+    notification_id: UUID,
+    service: NotificationService,
+    session: Session
+) -> NotificationResponse:
+    """"""
+    return service.read(notification_id, session)

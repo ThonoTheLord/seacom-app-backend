@@ -19,11 +19,14 @@ class BaseNotification(SQLModel):
 class Notification(BaseDB, BaseNotification, table=True):
     __tablename__ = "notifications"  # type: ignore
 
+    read: bool = Field(default=False, nullable=False)
+
     user: 'User' = Relationship(back_populates="notifications")
 
 
 class NotificationCreate(BaseNotification): ...
 
 
-class NotificationResponse(BaseDB, BaseNotification): ...
+class NotificationResponse(BaseDB, BaseNotification):
+    read: bool = Field(default=False)
     

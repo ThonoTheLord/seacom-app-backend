@@ -67,6 +67,20 @@ class _NotificationService:
         notification = self._get_notification(notification_id, session)
         notification.soft_delete()
         session.commit()
+    
+    def read(self, notification_id: UUID, session: Session) -> NotificationResponse:
+        """"""
+        notification = self._get_notification(notification_id, session)
+        notification.read = True
+        notification.touch()
+        try:
+            session.commit()
+            session.refresh(notification)
+            return self.notification_to_response(notification)
+        except Exception as e:
+            session.rollback()
+            raise InternalServerErrorException(f"unexpected error reading notification: {e}")
+
 
     def _get_notification(self, notification_id: UUID, session: Session) -> Notification:
         statement = select(Notification).where(Notification.id == notification_id, Notification.deleted_at.is_(None))  # type: ignore
