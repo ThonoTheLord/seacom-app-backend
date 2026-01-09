@@ -56,12 +56,15 @@ class _IncidentService:
     def read_incidents(
         self,
         session: Session,
+        technician_id: UUID | None = None,
         status: IncidentStatus | None = None,
         offset: int = 0,
         limit: int = 100,
     ) -> List[IncidentResponse]:
         statement = select(Incident).where(Incident.deleted_at.is_(None))  # type: ignore
 
+        if technician_id is not None:
+            statement = statement.where(Incident.technician_id == technician_id)
         if status is not None:
             statement = statement.where(Incident.status == status)
 

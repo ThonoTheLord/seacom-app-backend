@@ -24,12 +24,13 @@ def create_incident(
 def read_incidents(
     service: IncidentService,
     session: Session,
+    technician_id: UUID | None = Query(None),
     status: IncidentStatus | None = Query(None),
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=100, le=1000)
 ) -> List[IncidentResponse]:
     """"""
-    return service.read_incidents(session, status, offset, limit)
+    return service.read_incidents(session, technician_id, status, offset, limit)
 
 
 @router.get("/{incident_id}", response_model=IncidentResponse, status_code=200)
