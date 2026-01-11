@@ -6,7 +6,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from abc import ABC
 
 from .base import BaseDB
-from app.utils.enums import TaskStatus, TaskType
+from app.utils.enums import TaskStatus, TaskType, Region
 from app.utils.funcs import utcnow
 
 if TYPE_CHECKING:
@@ -71,5 +71,6 @@ class TaskResponse(BaseDB, BaseTask):
     status: TaskStatus
     completed_at: datetime | None = Field(default=None) # type: ignore
     site_name: str = Field(default="", description="")
+    site_region: Region = Field(default="", description="")
     technician_fullname: str = Field(default="", description="")
     num_attachments: int = Field(default=0, ge=0, description="")

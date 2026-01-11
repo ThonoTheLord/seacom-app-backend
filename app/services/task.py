@@ -20,7 +20,8 @@ class _TaskService:
             **task.model_dump(),
             site_name=task.site.name,
             technician_fullname=f"{user.name} {user.surname}",
-            num_attachments=len(task.attachments or [])
+            num_attachments=len(task.attachments or []),
+            site_region=task.site.region
             )
 
     def create_task(self, data: TaskCreate, session: Session) -> TaskResponse:
