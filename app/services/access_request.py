@@ -57,6 +57,7 @@ class _AccessRequestService:
         self,
         session: Session,
         status: AccessRequestStatus | None = None,
+        technician_id: UUID | None = None,
         offset: int = 0,
         limit: int = 100,
     ) -> List[AccessRequestResponse]:
@@ -64,6 +65,8 @@ class _AccessRequestService:
 
         if status is not None:
             statement = statement.where(AccessRequest.status == status)
+        if technician_id is not None:
+            statement = statement.where(AccessRequest.technician_id == technician_id)
 
         statement = statement.offset(offset).limit(limit)
         access_requests = session.exec(statement).all()

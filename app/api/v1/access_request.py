@@ -26,11 +26,12 @@ def read_access_requests(
     service: AccessRequestService,
     session: Session,
     status: AccessRequestStatus | None = Query(None),
+    technician_id: UUID | None = Query(None),
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=100, le=1000)
 ) -> List[AccessRequestResponse]:
     """"""
-    return service.read_access_requests(session, status, offset, limit)
+    return service.read_access_requests(session, status, technician_id, offset, limit)
 
 
 @router.get("/{access_request_id}", response_model=AccessRequestResponse, status_code=200)
@@ -64,28 +65,28 @@ def delete_access_request(
     service.delete_access_request(access_request_id, session)
 
 
-@router.patch("/{access_request_id}/approve", status_code=200)
+@router.patch("/{access_request_id}/approve", response_model=AccessRequestResponse, status_code=200)
 def approve_access_request(
     access_request_id: UUID,
     access_code: str,
     user: CurrentUser,
     service: AccessRequestService,
     session: Session
-) -> None:
+) -> AccessRequestResponse:
     """"""
     if user.role not in (UserRole.NOC, UserRole.MANAGER):
         raise ForbiddenException("you are not allowed to perform this action")
-    service.approve_access_request(access_request_id, access_code, session)
+    return service.approve_access_request(access_request_id, access_code, session)
 
 
-@router.patch("/{access_request_id}/reject", status_code=200)
+@router.patch("/{access_request_id}/reject", response_model=AccessRequestResponse, status_code=200)
 def reject_access_request(
     access_request_id: UUID,
     user: CurrentUser,
     service: AccessRequestService,
     session: Session
-) -> None:
+) -> AccessRequestResponse:
     """"""
     if user.role not in (UserRole.NOC, UserRole.MANAGER):
         raise ForbiddenException("you are not allowed to perform this action")
-    service.reject_access_request(access_request_id, session)
+    return service.reject_access_request(access_request_id, session)
