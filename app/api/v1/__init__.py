@@ -6,6 +6,7 @@ from .site import router as site_router
 from .task import router as task_router
 from .incident import router as incident_router
 from .report import router as report_router
+from .access_request import router as access_request_router
 
 router = APIRouter(prefix="/v1")
 router.include_router(auth_router)
@@ -15,3 +16,4 @@ router.include_router(site_router)
 router.include_router(task_router)
 router.include_router(incident_router)
 router.include_router(report_router)
+router.include_router(access_request_router)
