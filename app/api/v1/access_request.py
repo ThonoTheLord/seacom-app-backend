@@ -8,7 +8,7 @@ from app.database import Session
 from app.utils.enums import AccessRequestStatus, UserRole
 from app.exceptions.http import ForbiddenException
 
-router = APIRouter(prefix="/access_requests", tags=["Access Requests"])
+router = APIRouter(prefix="/access-requests", tags=["Access Requests"])
 
 
 @router.post("/", response_model=AccessRequestResponse, status_code=201)

@@ -88,7 +88,11 @@ class _TechnicianService:
         session.commit()
 
     def _get_technician(self, technician_id: UUID, session: Session) -> Technician:
-        statement = select(Technician).where(Technician.id == technician_id, Technician.deleted_at.is_(None))  # type: ignore
+        statement = (
+            select(Technician)
+            .where(Technician.id == technician_id)
+            .where(Technician.deleted_at.is_(None)) # type: ignore
+          )  
         technician: Technician | None = session.exec(statement).first()
         if not technician:
             raise NotFoundException("technician not found")
