@@ -1,5 +1,5 @@
 from uuid import UUID
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, List
 from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy.dialects.postgresql import JSONB
 
@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from .technician import Technician
     from .task import Task
     from .routine_check import RoutineCheck
+    from .routine_issues import RoutineIssue
 
 
 class BaseReport(SQLModel):
@@ -29,6 +30,7 @@ class Report(BaseDB, BaseReport, table=True):
     technician: 'Technician' = Relationship(back_populates="reports")
     task: 'Task' = Relationship(back_populates="reports")
     routine_check: 'RoutineCheck' = Relationship(back_populates="report")
+    routine_issues: List['RoutineIssue'] = Relationship(back_populates="report")
 
     def start(self) -> None:
         self.status = ReportStatus.STARTED

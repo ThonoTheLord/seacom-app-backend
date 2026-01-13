@@ -18,7 +18,7 @@ class BaseRoutineIssue(SQLModel):
 class RoutineIssue(BaseDB, BaseRoutineIssue, table=True):
     __tablename__ = "routine_issues" # type: ignore
 
-    report: 'Report' = Relationship(back_populates="routine_issue")
+    report: 'Report' = Relationship(back_populates="routine_issues")
 
 class RoutineIssueCreate(BaseRoutineIssue): ...
 
