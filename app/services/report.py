@@ -10,6 +10,7 @@ from app.exceptions.http import (
     ConflictException,
     InternalServerErrorException,
     NotFoundException,
+    ForbiddenException
 )
 
 
@@ -68,6 +69,9 @@ class _ReportService:
         update_data = data.model_dump(
             exclude_none=True, exclude_defaults=True, exclude_unset=True
         )
+
+        if report.status in [ReportStatus.COMPLETED]:
+            raise ForbiddenException("Cannot update a completed report.")
 
         if not update_data:
             return self.report_to_response(report)
