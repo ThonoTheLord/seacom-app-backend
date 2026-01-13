@@ -8,8 +8,10 @@ from .report import ReportService
 from .notification import NotificationService
 from .access_request import AccessRequestService
 from .routine_check import RoutineCheckService
+from .routine_issue import RoutineIssueService
 
 __all__ = ["AuthService", "CurrentUser", "UserService", "TechnicianService",
            "SiteService", "TaskService", "IncidentService", "ReportService",
-           "NotificationService", "AccessRequestService", "RoutineCheckService"
+           "NotificationService", "AccessRequestService", "RoutineCheckService",
+           "RoutineIssueService"
            ]

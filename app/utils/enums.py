@@ -73,3 +73,10 @@ class RoutineCheckStatus(StrEnum):
     YES = "yes"
     NO = "no"
     NA = "n/a"
+
+
+class RoutineIssueSeverity(StrEnum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"

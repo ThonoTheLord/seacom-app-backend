@@ -24,12 +24,12 @@ def create_routine_check(
 def read_routine_checks(
     service: RoutineCheckService,
     session: Session,
-    region: RoutineCheckStatus | None = Query(None),
+    status: RoutineCheckStatus | None = Query(None),
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=100, le=1000)
 ) -> List[RoutineCheckResponse]:
     """"""
-    return service.read_routine_checks(session, region, offset, limit)
+    return service.read_routine_checks(session, status, offset, limit)
 
 
 @router.get("/{routine_check_id}", response_model=RoutineCheckResponse, status_code=200)
