@@ -8,6 +8,7 @@ from .incident import Incident, IncidentCreate, IncidentUpdate, IncidentResponse
 from .access_request import AccessRequest, AccessRequestCreate, AccessRequestUpdate, AccessRequestResponse
 from .report import Report, ReportCreate, ReportUpdate, ReportResponse
 from .notification import Notification, NotificationCreate, NotificationResponse
+from .routine_check import RoutineCheck, RoutineCheckCreate, RoutineCheckResponse, RoutineCheckUpdate
 
 __all__ = [
     "BaseDB",
@@ -47,4 +48,8 @@ __all__ = [
     "Notification",
     "NotificationCreate",
     "NotificationResponse",
+    "RoutineCheck",
+    "RoutineCheckCreate",
+    "RoutineCheckResponse",
+    "RoutineCheckUpdate",
 ]

@@ -9,12 +9,14 @@ from app.utils.enums import ReportType, ReportStatus
 if TYPE_CHECKING:
     from .technician import Technician
     from .task import Task
+    from .routine_check import RoutineCheck
 
 
 class BaseReport(SQLModel):
     report_type: ReportType = Field(nullable=False, description="")
     data: dict[str, Any] = Field(nullable=False, sa_type=JSONB)
     attachments: dict[str, str] | None = Field(default=None, sa_type=JSONB)
+    service_provider: str = Field(max_length=100, nullable=False)
     technician_id: UUID = Field(foreign_key="technicians.id")
     task_id: UUID = Field(foreign_key="tasks.id")
 
@@ -26,6 +28,7 @@ class Report(BaseDB, BaseReport, table=True):
 
     technician: 'Technician' = Relationship(back_populates="reports")
     task: 'Task' = Relationship(back_populates="reports")
+    routine_check: 'RoutineCheck' = Relationship(back_populates="report")
 
     def start(self) -> None:
         self.status = ReportStatus.STARTED

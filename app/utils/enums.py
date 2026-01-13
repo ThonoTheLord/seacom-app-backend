@@ -67,3 +67,9 @@ class NotificationPriority(StrEnum):
     NORMAL = "normal"
     HIGH = "high"
     CRITICAL = "critical"
+
+
+class RoutineCheckStatus(StrEnum):
+    YES = "yes"
+    NO = "no"
+    NA = "n/a"
