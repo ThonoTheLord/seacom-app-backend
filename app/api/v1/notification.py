@@ -3,7 +3,7 @@ from typing import List
 from uuid import UUID
 
 from app.models import NotificationCreate, NotificationResponse
-from app.services import NotificationService
+from app.services import NotificationService, CurrentUser
 from app.database import Session
 from app.utils.enums import NotificationPriority
 
@@ -14,9 +14,10 @@ router = APIRouter(prefix="/notifications", tags=["Notifications"])
 def create_notification(
     payload: NotificationCreate,
     service: NotificationService,
-    session: Session
+    session: Session,
+    current_user: CurrentUser
 ) -> NotificationResponse:
-    """"""
+    """Create a new notification. Only admin/manager can create for other users."""
     return service.create_notification(payload, session)
 
 
@@ -24,12 +25,17 @@ def create_notification(
 def read_notifications(
     service: NotificationService,
     session: Session,
+    current_user: CurrentUser,
     priority: NotificationPriority | None = Query(None),
     user_id: UUID | None = Query(None),
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=100, le=1000)
 ) -> List[NotificationResponse]:
-    """"""
+    """Get notifications. If user_id not specified, returns current user's notifications."""
+    # If no user_id specified, default to current user's notifications
+    if user_id is None:
+        user_id = current_user.user_id
+    
     return service.read_notifications(session, priority, user_id, offset, limit)
 
 
@@ -37,9 +43,10 @@ def read_notifications(
 def read_notification(
     notification_id: UUID,
     service: NotificationService,
-    session: Session
+    session: Session,
+    current_user: CurrentUser
 ) -> NotificationResponse:
-    """"""
+    """Get a specific notification."""
     return service.read_notification(notification_id, session)
 
 
@@ -47,9 +54,10 @@ def read_notification(
 def delete_notification(
     notification_id: UUID,
     service: NotificationService,
-    session: Session
+    session: Session,
+    current_user: CurrentUser
 ) -> None:
-    """"""
+    """Delete a notification."""
     service.delete_notification(notification_id, session)
 
 
@@ -57,7 +65,8 @@ def delete_notification(
 def mark_as_read(
     notification_id: UUID,
     service: NotificationService,
-    session: Session
+    session: Session,
+    current_user: CurrentUser
 ) -> NotificationResponse:
-    """"""
+    """Mark notification as read."""
     return service.read(notification_id, session)

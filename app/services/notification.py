@@ -40,6 +40,27 @@ class _NotificationService:
             session.rollback()
             raise InternalServerErrorException(f"Unexpected error creating notification: {e}")
 
+    def create_notification_for_user(
+        self,
+        user_id: UUID,
+        title: str,
+        message: str,
+        priority: NotificationPriority = NotificationPriority.NORMAL,
+        session: Session = None
+    ) -> NotificationResponse | None:
+        """Helper to create notification without raising exception if user not found."""
+        try:
+            notification_data = NotificationCreate(
+                user_id=user_id,
+                title=title,
+                message=message,
+                priority=priority
+            )
+            return self.create_notification(notification_data, session)
+        except Exception:
+            # Silently fail if notification creation fails
+            return None
+
     def read_notification(self, notification_id: UUID, session: Session) -> NotificationResponse:
         notification = self._get_notification(notification_id, session)
         return self.notification_to_response(notification)
@@ -59,7 +80,7 @@ class _NotificationService:
         if user_id is not None:
             statement = statement.where(Notification.user_id == user_id)
 
-        statement = statement.offset(offset).limit(limit)
+        statement = statement.order_by(Notification.created_at.desc()).offset(offset).limit(limit)
         notifications = session.exec(statement).all()
         return [self.notification_to_response(notification) for notification in notifications]
 
@@ -69,7 +90,7 @@ class _NotificationService:
         session.commit()
     
     def read(self, notification_id: UUID, session: Session) -> NotificationResponse:
-        """"""
+        """Mark notification as read."""
         notification = self._get_notification(notification_id, session)
         notification.read = True
         notification.touch()

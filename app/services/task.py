@@ -4,8 +4,8 @@ from typing import List, Annotated
 from sqlmodel import Session, select
 from sqlalchemy.exc import IntegrityError
 
-from app.utils.enums import TaskType, TaskStatus
-from app.models import Task, TaskCreate, TaskUpdate, TaskResponse, Site, Technician
+from app.utils.enums import TaskType, TaskStatus, NotificationPriority
+from app.models import Task, TaskCreate, TaskUpdate, TaskResponse, Site, Technician, NotificationCreate
 from app.exceptions.http import (
     ConflictException,
     InternalServerErrorException,
@@ -42,6 +42,18 @@ class _TaskService:
             session.add(task)
             session.commit()
             session.refresh(task)
+            
+            # Create notification for technician
+            from app.services.notification import _NotificationService
+            notification_service = _NotificationService()
+            notification_service.create_notification_for_user(
+                user_id=technician.user_id,
+                title=f"New Task Assigned: {site.name}",
+                message=f"You have been assigned a new task at {site.name}. {data.description[:100]}...",
+                priority=NotificationPriority.HIGH,
+                session=session
+            )
+            
             return self.task_to_response(task)
         except IntegrityError as e:
             session.rollback()

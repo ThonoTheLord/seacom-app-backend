@@ -12,4 +12,5 @@ dependencies = [
     "pydantic-settings>=2.12.0",
     "python-jose>=3.5.0",
     "sqlmodel>=0.0.31",
+    "slowapi>=0.1.9",
 ]

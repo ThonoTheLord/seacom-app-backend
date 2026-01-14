@@ -74,14 +74,12 @@ class UserUpdate(SQLModel):
     name: str | None = Field(
         default=None,
         max_length=100,
-        nullable=False,
         description="The first name of the user",
         schema_extra={"examples": {"Moses", "Bongani"}},
     )
     surname: str | None = Field(
         default=None,
         max_length=100,
-        nullable=False,
         description="The last name of the user",
         schema_extra={"examples": {"Kubeka", "Smith"}},
     )

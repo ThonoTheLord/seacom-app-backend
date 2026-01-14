@@ -89,7 +89,7 @@ class SecurityUtils:
         encoded = jwt.encode(
             payload,
             key=app_settings.JWT_SECRET_KEY,
-            algorithm=app_settings.JWT_ALGORITH,
+            algorithm=app_settings.JWT_ALGORITHM,
         )
         
         return Token(access_token=encoded, token_type="bearer")
@@ -129,7 +129,7 @@ class SecurityUtils:
         encoded = jwt.encode(
             payload,
             key=app_settings.JWT_SECRET_KEY,
-            algorithm=app_settings.JWT_ALGORITH,
+            algorithm=app_settings.JWT_ALGORITHM,
         )
         
         return Token(access_token=encoded, is_refresh=True)
@@ -155,7 +155,7 @@ class SecurityUtils:
             decoded = jwt.decode(
                 token_str,
                 key=app_settings.JWT_SECRET_KEY,
-                algorithms=[app_settings.JWT_ALGORITH],
+                algorithms=[app_settings.JWT_ALGORITHM],
             )
             
             user_id: str | None = decoded.get("user_id")

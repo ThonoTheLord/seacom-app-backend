@@ -8,20 +8,25 @@ from app.core.settings import app_settings
 
 
 class Database:
-    """"""
+    """Database connection manager."""
 
-    connection: Engine | None = create_engine(app_settings.database_url)
+    connection: Engine | None = None
 
     @classmethod
     def connect(cls, url: str) -> None:
-        """"""
+        """Establish database connection with connection pooling."""
         if cls.connection:
             LOG.warning(
                 "Database is already connected. Disconnecting and reconnecting..."
             )
             cls.disconnect()
         try:
-            cls.connection = create_engine(url)
+            cls.connection = create_engine(
+                url,
+                pool_size=10,
+                max_overflow=20,
+                pool_pre_ping=True,  # Verify connections before using them
+            )
             LOG.debug(f"Connected to {cls.connection.url.database} database.")
         except Exception as e:
             message: str = f"Failed to connect to the database: {e}"
@@ -30,7 +35,7 @@ class Database:
 
     @classmethod
     def disconnect(cls) -> None:
-        """"""
+        """Close database connection and dispose of engine."""
         if not cls.connection:
             LOG.warning("Cannot disconnect from the database. Connect first.")
             return
@@ -46,7 +51,7 @@ class Database:
 
     @classmethod
     def init(cls) -> None:
-        """"""
+        """Initialize database schema and create tables."""
         if not cls.connection:
             LOG.warning("Cannot initialize the database. Connect first.")
             return
@@ -64,7 +69,7 @@ class Database:
 
     @classmethod
     def get_session(cls) -> Generator[_Session]:
-        """"""
+        """Get a database session for request handling."""
         if not cls.connection:
             LOG.critical("Cannot get session. Database is not connected.")
             raise RuntimeError("Cannot get session. Database is not connected.")

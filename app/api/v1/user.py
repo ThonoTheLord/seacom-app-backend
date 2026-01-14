@@ -15,9 +15,12 @@ router = APIRouter(prefix="/users", tags=["Users"])
 def create_user(
     payload: UserCreate,
     service: UserService,
-    session: Session
+    session: Session,
+    current_user: CurrentUser
 ) -> UserResponse:
-    """"""
+    """Create a new user. Only accessible to admin and manager roles."""
+    if current_user.role not in [UserRole.ADMIN, UserRole.MANAGER]:
+        raise UnauthorizedException("You do not have permission to create users.")
     return service.create_user(payload, session)
 
 
@@ -25,12 +28,15 @@ def create_user(
 def read_users(
     service: UserService,
     session: Session,
+    current_user: CurrentUser,
     status: UserStatus | None = Query(default=None),
     role: UserRole | None = Query(default=None),
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=100, le=1000)
 ) -> List[UserResponse]:
-    """"""
+    """Get all users. Only accessible to admin and manager roles."""
+    if current_user.role not in [UserRole.ADMIN, UserRole.MANAGER]:
+        raise UnauthorizedException("You do not have permission to view all users.")
     return service.read_users(session, status, role, offset, limit)
 
 
@@ -99,7 +105,10 @@ def deactivate_user(
 def delete_user(
     user_id: UUID,
     service: UserService,
-    session: Session
+    session: Session,
+    current_user: CurrentUser
 ) -> None:
-    """"""
+    """Soft delete a user. Only accessible to admin and manager roles."""
+    if current_user.role not in [UserRole.ADMIN, UserRole.MANAGER]:
+        raise UnauthorizedException("You do not have permission to delete users.")
     service.delete_user(user_id, session)

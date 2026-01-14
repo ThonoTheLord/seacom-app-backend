@@ -18,13 +18,13 @@ class _AuthService:
         user: User | None = session.exec(statement).first()
 
         if not user:
-            raise NotFoundException("Invalid email or password")
+            raise UnauthorizedException("Invalid email or password")
         
         if not user.is_active():
             raise UnauthorizedException("This account has been deactivated. Please contact your admin.")
         
         if not SecurityUtils.check_password(form.password, user.password_hash):
-            raise NotFoundException("Invalid email or password")
+            raise UnauthorizedException("Invalid email or password")
         
         return SecurityUtils.create_token(user.id, user.role)
 

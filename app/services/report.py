@@ -4,8 +4,8 @@ from typing import List, Annotated
 from sqlmodel import Session, select
 from sqlalchemy.exc import IntegrityError
 
-from app.utils.enums import ReportType, ReportStatus
-from app.models import Report, ReportCreate, ReportUpdate, ReportResponse
+from app.utils.enums import ReportType, ReportStatus, NotificationPriority
+from app.models import Report, ReportCreate, ReportUpdate, ReportResponse, Task, Technician
 from app.exceptions.http import (
     ConflictException,
     InternalServerErrorException,
@@ -28,6 +28,36 @@ class _ReportService:
             session.add(report)
             session.commit()
             session.refresh(report)
+            
+            # Get task and technician info for notification
+            task = session.exec(select(Task).where(Task.id == data.task_id)).first()
+            technician = session.exec(select(Technician).where(Technician.id == data.technician_id)).first()
+            
+            if task and technician:
+                # Create notification for NOC operators about new report
+                from app.services.notification import _NotificationService
+                from app.models import User
+                from app.utils.enums import UserRole
+                
+                notification_service = _NotificationService()
+                
+                # Notify all NOC operators
+                noc_users = session.exec(
+                    select(User).where(
+                        User.role == UserRole.NOC,
+                        User.deleted_at.is_(None)
+                    )
+                ).all()
+                
+                for noc_user in noc_users:
+                    notification_service.create_notification_for_user(
+                        user_id=noc_user.id,
+                        title=f"New Report Submitted",
+                        message=f"{technician.user.name} submitted a {data.report_type} report for task at {task.site.name}",
+                        priority=NotificationPriority.NORMAL,
+                        session=session
+                    )
+            
             return self.report_to_response(report)
         except IntegrityError as e:
             session.rollback()

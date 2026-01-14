@@ -4,8 +4,8 @@ from typing import List, Annotated
 from sqlmodel import Session, select
 from sqlalchemy.exc import IntegrityError
 
-from app.utils.enums import IncidentStatus
-from app.models import Incident, IncidentCreate, IncidentUpdate, IncidentResponse, Site, Technician
+from app.utils.enums import IncidentStatus, NotificationPriority
+from app.models import Incident, IncidentCreate, IncidentUpdate, IncidentResponse, Site, Technician, User
 from app.exceptions.http import (
     ConflictException,
     InternalServerErrorException,
@@ -41,6 +41,30 @@ class _IncidentService:
             session.add(incident)
             session.commit()
             session.refresh(incident)
+            
+            # Create notification for NOC operators about new incident
+            from app.services.notification import _NotificationService
+            from app.utils.enums import UserRole
+            
+            notification_service = _NotificationService()
+            
+            # Notify all NOC operators
+            noc_users = session.exec(
+                select(User).where(
+                    User.role == UserRole.NOC,
+                    User.deleted_at.is_(None)
+                )
+            ).all()
+            
+            for noc_user in noc_users:
+                notification_service.create_notification_for_user(
+                    user_id=noc_user.id,
+                    title=f"New Incident Reported",
+                    message=f"Critical incident reported at {site.name} by {technician.user.name}. {data.description[:80]}...",
+                    priority=NotificationPriority.CRITICAL,
+                    session=session
+                )
+            
             return self.incident_to_response(incident)
         except IntegrityError as e:
             session.rollback()
