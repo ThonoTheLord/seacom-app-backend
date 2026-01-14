@@ -49,7 +49,7 @@ class _TaskService:
             notification_service.create_notification_for_user(
                 user_id=technician.user_id,
                 title=f"New Task Assigned: {site.name}",
-                message=f"You have been assigned a new task at {site.name}. {data.description[:100]}...",
+                message=f"Task assigned at {site.name}. {data.description[:100]}...",
                 priority=NotificationPriority.HIGH,
                 session=session
             )
