@@ -3,6 +3,7 @@ from fastapi import Depends
 from typing import List, Annotated
 from sqlmodel import Session, select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy import and_
 
 from app.utils.enums import ReportType, ReportStatus, NotificationPriority
 from app.models import Report, ReportCreate, ReportUpdate, ReportResponse, Task, Technician
@@ -44,16 +45,22 @@ class _ReportService:
                 # Notify all NOC operators
                 noc_users = session.exec(
                     select(User).where(
-                        User.role == UserRole.NOC,
-                        User.deleted_at.is_(None)
+                        and_(
+                            User.role == UserRole.NOC,
+                            User.deleted_at.is_(None)
+                        )
                     )
                 ).all()
+                
+                # Get site name safely
+                site_name = task.site.name if task.site else "Unknown Site"
+                technician_name = technician.user.name if technician.user else "Unknown Technician"
                 
                 for noc_user in noc_users:
                     notification_service.create_notification_for_user(
                         user_id=noc_user.id,
                         title=f"New Report Submitted",
-                        message=f"{technician.user.name} submitted a {data.report_type} report for task at {task.site.name}",
+                        message=f"{technician_name} submitted a {data.report_type} report for task at {site_name}",
                         priority=NotificationPriority.NORMAL,
                         session=session
                     )

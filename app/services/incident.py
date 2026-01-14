@@ -3,6 +3,7 @@ from fastapi import Depends
 from typing import List, Annotated
 from sqlmodel import Session, select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy import and_
 
 from app.utils.enums import IncidentStatus, NotificationPriority
 from app.models import Incident, IncidentCreate, IncidentUpdate, IncidentResponse, Site, Technician, User
@@ -51,8 +52,10 @@ class _IncidentService:
             # Notify all NOC operators
             noc_users = session.exec(
                 select(User).where(
-                    User.role == UserRole.NOC,
-                    User.deleted_at.is_(None)
+                    and_(
+                        User.role == UserRole.NOC,
+                        User.deleted_at.is_(None)
+                    )
                 )
             ).all()
             

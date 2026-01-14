@@ -52,7 +52,7 @@ class AccessRequestStatus(StrEnum):
 
 
 class ReportType(StrEnum):
-    DIESIL = "diesil"
+    DIESEL = "diesel"
     GENERAL = "general"
     REPEATER = "repeater"
     ROUTINE_DRIVE = "routine-drive"
