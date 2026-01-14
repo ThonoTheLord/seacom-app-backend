@@ -5,7 +5,14 @@ from sqlmodel import Session, select
 from sqlalchemy.exc import IntegrityError
 
 from app.utils.enums import AccessRequestStatus
-from app.models import AccessRequest, AccessRequestCreate, AccessRequestUpdate, AccessRequestResponse, Site, Technician
+from app.models import (
+    AccessRequest,
+    AccessRequestCreate,
+    AccessRequestUpdate,
+    AccessRequestResponse,
+    Site,
+    Technician,
+    )
 from app.exceptions.http import (
     ConflictException,
     InternalServerErrorException,

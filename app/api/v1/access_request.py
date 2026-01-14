@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Body
 from typing import List
 from uuid import UUID
 
@@ -68,10 +68,10 @@ def delete_access_request(
 @router.patch("/{access_request_id}/approve", response_model=AccessRequestResponse, status_code=200)
 def approve_access_request(
     access_request_id: UUID,
-    access_code: str,
     user: CurrentUser,
     service: AccessRequestService,
-    session: Session
+    session: Session,
+    access_code: str = Body(..., embed=True),
 ) -> AccessRequestResponse:
     """"""
     if user.role not in (UserRole.NOC, UserRole.MANAGER):
