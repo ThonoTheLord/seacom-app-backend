@@ -10,6 +10,7 @@ from .report import Report, ReportCreate, ReportUpdate, ReportResponse
 from .notification import Notification, NotificationCreate, NotificationResponse
 from .routine_check import RoutineCheck, RoutineCheckCreate, RoutineCheckResponse, RoutineCheckUpdate
 from .routine_issues import RoutineIssue, RoutineIssueCreate, RoutineIssueResponse, RoutineIssueUpdate
+from .routine_inspection import RoutineInspection, RoutineInspectionCreate, RoutineInspectionUpdate, RoutineInspectionResponse
 
 __all__ = [
     "BaseDB",
@@ -57,4 +58,8 @@ __all__ = [
     "RoutineIssueCreate",
     "RoutineIssueResponse",
     "RoutineIssueUpdate",
+    "RoutineInspection",
+    "RoutineInspectionCreate",
+    "RoutineInspectionUpdate",
+    "RoutineInspectionResponse",
 ]
