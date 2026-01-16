@@ -59,6 +59,8 @@ class SecurityUtils:
         cls,
         user_id: UUID,
         role: UserRole,
+        name: str,
+        surname: str,
         exp: datetime | None = None,
     ) -> Token:
         """
@@ -67,6 +69,8 @@ class SecurityUtils:
         Args:
             user_id: The unique identifier of the user
             role: The role of the user (from UserRole enum)
+            name: The first name of the user
+            surname: The last name of the user
             exp: Optional custom expiration datetime. If not provided, uses default from settings
             
         Returns:
@@ -81,6 +85,8 @@ class SecurityUtils:
         payload: dict[str, Any] = {
             "user_id": str(user_id),
             "role": role,
+            "name": name,
+            "surname": surname,
             "exp": expiration,
             "iat": utcnow(),
             "type": "access",
@@ -99,6 +105,8 @@ class SecurityUtils:
         cls,
         user_id: UUID,
         role: UserRole,
+        name: str,
+        surname: str,
         exp: datetime | None = None,
     ) -> Token:
         """
@@ -107,6 +115,8 @@ class SecurityUtils:
         Args:
             user_id: The unique identifier of the user
             role: The role of the user (from UserRole enum)
+            name: The first name of the user
+            surname: The last name of the user
             exp: Optional custom expiration datetime. If not provided, uses default from settings
             
         Returns:
@@ -121,6 +131,8 @@ class SecurityUtils:
         payload: dict[str, Any] = {
             "user_id": str(user_id),
             "role": role,
+            "name": name,
+            "surname": surname,
             "exp": expiration,
             "iat": utcnow(),
             "type": "refresh",
@@ -160,6 +172,8 @@ class SecurityUtils:
             
             user_id: str | None = decoded.get("user_id")
             role: str | None = decoded.get("role")
+            name: str | None = decoded.get("name")
+            surname: str | None = decoded.get("surname")
             exp: int | None = decoded.get("exp")
             token_type: str | None = decoded.get("type")
             
@@ -178,6 +192,8 @@ class SecurityUtils:
             return TokenData(
                 user_id=UUID(user_id),
                 role=UserRole(role),
+                name=name,
+                surname=surname,
                 exp=expiration,
                 token_type=token_type,
             )

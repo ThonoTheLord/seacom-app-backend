@@ -26,7 +26,7 @@ class _AuthService:
         if not SecurityUtils.check_password(form.password, user.password_hash):
             raise UnauthorizedException("Invalid email or password")
         
-        return SecurityUtils.create_token(user.id, user.role)
+        return SecurityUtils.create_token(user.id, user.role, user.name, user.surname)
 
 def get_auth_service() -> _AuthService:
     """"""

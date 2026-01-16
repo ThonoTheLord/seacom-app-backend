@@ -3,6 +3,8 @@ from sqlalchemy import Engine
 from loguru import logger as LOG
 from typing import Generator, List, Annotated
 from fastapi import Depends
+from datetime import datetime
+from contextlib import contextmanager
 
 from app.core.settings import app_settings
 
@@ -75,6 +77,21 @@ class Database:
             raise RuntimeError("Cannot get session. Database is not connected.")
         with _Session(cls.connection) as session:
             yield session
+
+    @classmethod
+    @contextmanager
+    def session(cls):
+        """Context manager for database sessions (non-dependency injection)."""
+        if not cls.connection:
+            LOG.critical("Cannot get session. Database is not connected.")
+            raise RuntimeError("Cannot get session. Database is not connected.")
+        with _Session(cls.connection) as session:
+            yield session
+
+    @classmethod
+    def get_current_timestamp(cls) -> str:
+        """Get current UTC timestamp in ISO format."""
+        return datetime.utcnow().isoformat() + "Z"
 
 
 Session = Annotated[_Session, Depends(Database.get_session)]

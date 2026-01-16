@@ -10,9 +10,10 @@ from .access_request import AccessRequestService
 from .routine_check import RoutineCheckService
 from .routine_issue import RoutineIssueService
 from .routine_inspection import RoutineInspectionService
+from .pdf import PDFService, get_pdf_service
 
 __all__ = ["AuthService", "CurrentUser", "UserService", "TechnicianService",
            "SiteService", "TaskService", "IncidentService", "ReportService",
            "NotificationService", "AccessRequestService", "RoutineCheckService",
-           "RoutineIssueService", "RoutineInspectionService"
+           "RoutineIssueService", "RoutineInspectionService", "PDFService", "get_pdf_service"
            ]

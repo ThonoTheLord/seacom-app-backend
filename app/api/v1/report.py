@@ -1,11 +1,13 @@
 from fastapi import APIRouter, Query
+from fastapi.responses import StreamingResponse, Response
 from typing import List
 from uuid import UUID
 
 from app.models import ReportCreate, ReportUpdate, ReportResponse
-from app.services import ReportService
+from app.services import ReportService, CurrentUser
 from app.database import Session
-from app.utils.enums import ReportStatus, ReportType
+from app.utils.enums import ReportStatus, ReportType, UserRole
+from app.exceptions.http import UnauthorizedException
 
 router = APIRouter(prefix="/reports", tags=["Reports"])
 
@@ -83,3 +85,33 @@ def complete_report(
 ) -> ReportResponse:
     """"""
     return service.complete_report(report_id, session)
+
+
+@router.get("/{report_id}/export/pdf", status_code=200)
+def export_report_pdf(
+    report_id: UUID,
+    service: ReportService,
+    session: Session,
+    current_user: CurrentUser
+) -> Response:
+    """
+    Export a completed report as a PDF document.
+    Only accessible to NOC, Manager, and Admin roles.
+    """
+    allowed_roles = [UserRole.NOC, UserRole.MANAGER, UserRole.ADMIN]
+    if current_user.role not in allowed_roles:
+        raise UnauthorizedException("You do not have permission to export reports.")
+    
+    pdf_buffer, filename = service.export_report_pdf(report_id, session)
+    
+    # Get the PDF bytes from the buffer
+    pdf_bytes = pdf_buffer.getvalue()
+    
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}",
+            "Content-Length": str(len(pdf_bytes))
+        }
+    )

@@ -36,6 +36,16 @@ class TokenData(BaseModel):
         description="The role of the authenticated user (e.g., admin, noc, technician)",
         examples=[UserRole.ADMIN]
     )
+    name: str | None = Field(
+        default=None,
+        description="The first name of the authenticated user",
+        examples=["John"]
+    )
+    surname: str | None = Field(
+        default=None,
+        description="The last name of the authenticated user",
+        examples=["Doe"]
+    )
     exp: datetime | None = Field(
         default=None,
         description="Expiration datetime of the token in UTC",
@@ -58,6 +68,8 @@ class TokenData(BaseModel):
             "example": {
                 "user_id": "123e4567-e89b-12d3-a456-426614174000",
                 "role": "user",
+                "name": "John",
+                "surname": "Doe",
                 "exp": "2024-12-31T23:59:59",
                 "token_type": "access",
                 "iat": "2024-01-01T00:00:00"

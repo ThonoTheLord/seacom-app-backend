@@ -1,4 +1,5 @@
 from uuid import UUID
+from io import BytesIO
 from fastapi import Depends
 from typing import List, Annotated
 from sqlmodel import Session, select, text
@@ -14,6 +15,7 @@ from app.exceptions.http import (
     NotFoundException,
     ForbiddenException
 )
+from app.services.pdf import get_pdf_service
 
 
 class _ReportService:
@@ -210,6 +212,55 @@ class _ReportService:
         except Exception as e:
             session.rollback()
             raise InternalServerErrorException(f"Unexpected error completing report: {e}")
+
+    def export_report_pdf(self, report_id: UUID, session: Session) -> tuple[BytesIO, str]:
+        """
+        Export a completed report as a PDF document.
+        
+        Args:
+            report_id: The UUID of the report to export
+            session: Database session
+            
+        Returns:
+            Tuple of (PDF buffer, filename)
+            
+        Raises:
+            NotFoundException: If report not found
+            ForbiddenException: If report is not completed
+        """
+        report = self._get_report(report_id, session)
+        
+        if report.status != ReportStatus.COMPLETED:
+            raise ForbiddenException("Only completed reports can be exported as PDF")
+        
+        try:
+            # Ensure relationships are loaded
+            session.refresh(report)
+            
+            pdf_service = get_pdf_service()
+            pdf_buffer = pdf_service.generate_report_pdf(report)
+            
+            # Verify buffer has content
+            pdf_bytes = pdf_buffer.getvalue()
+            if not pdf_bytes:
+                raise InternalServerErrorException("Failed to generate PDF: empty buffer")
+            
+            # Generate filename
+            report_type = report.report_type.value.replace("-", "_")
+            created_date = report.created_at.strftime("%Y%m%d") if report.created_at else "unknown"
+            filename = f"report_{report_type}_{created_date}_{str(report.id)[:8]}.pdf"
+            
+            # Reset buffer for reading
+            pdf_buffer.seek(0)
+            return pdf_buffer, filename
+        except ForbiddenException:
+            raise
+        except NotFoundException:
+            raise
+        except Exception as e:
+            raise InternalServerErrorException(f"Failed to generate PDF: {str(e)}")
+
+
 
     def _get_report(self, report_id: UUID, session: Session) -> Report:
         statement = select(Report).where(Report.id == report_id, Report.deleted_at.is_(None))  # type: ignore
