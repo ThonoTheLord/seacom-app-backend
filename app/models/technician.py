@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from .access_request import AccessRequest
     from .report import Report
     from .incident import Incident
+    from .routine_inspection import RoutineInspection
 
 
 class BaseTechnician(SQLModel, ABC):
@@ -34,6 +35,7 @@ class Technician(BaseDB, BaseTechnician, table=True):
     access_requests: List['AccessRequest'] = Relationship(back_populates="technician")
     reports: List['Report'] = Relationship(back_populates="technician")
     incidents: List['Incident'] = Relationship(back_populates="technician")
+    routine_inspections: List['RoutineInspection'] = Relationship(back_populates="technician")
 
 
 class TechnicianCreate(BaseTechnician): ...

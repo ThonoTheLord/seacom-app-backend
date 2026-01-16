@@ -8,6 +8,7 @@ if TYPE_CHECKING:
     from .task import Task
     from .access_request import AccessRequest
     from .incident import Incident
+    from .routine_inspection import RoutineInspection
 
 
 class BaseSite(SQLModel):
@@ -21,6 +22,7 @@ class Site(BaseDB, BaseSite, table=True):
     tasks: List['Task'] = Relationship(back_populates="site")
     access_requests: List['AccessRequest'] = Relationship(back_populates="site")
     incidents: List['Incident'] = Relationship(back_populates="site")
+    routine_inspections: List['RoutineInspection'] = Relationship(back_populates="site")
 
 
 class SiteCreate(BaseSite): ...

@@ -1,9 +1,14 @@
 from uuid import UUID
-from typing import Any
-from sqlmodel import SQLModel, Field
+from typing import Any, TYPE_CHECKING
+from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy.dialects.postgresql import JSONB
 
 from .base import BaseDB
+
+if TYPE_CHECKING:
+    from .site import Site
+    from .task import Task
+    from .technician import Technician
 
 
 class BaseRoutineInspection(SQLModel):
@@ -19,6 +24,10 @@ class BaseRoutineInspection(SQLModel):
 class RoutineInspection(BaseDB, BaseRoutineInspection, table=True):
     """Database model for routine generator inspections"""
     __tablename__ = "routine_inspections"  # type: ignore
+
+    site: 'Site' = Relationship(back_populates="routine_inspections")
+    task: 'Task' = Relationship(back_populates="routine_inspections")
+    technician: 'Technician' = Relationship(back_populates="routine_inspections")
 
 
 class RoutineInspectionCreate(BaseRoutineInspection):

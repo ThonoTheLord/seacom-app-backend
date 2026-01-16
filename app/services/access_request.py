@@ -23,8 +23,10 @@ from app.exceptions.http import (
 class _AccessRequestService:
     def access_request_to_response(self, access_request: AccessRequest) -> AccessRequestResponse:
         user = access_request.technician.user
+        data = access_request.model_dump(exclude={'report_type'})
         return AccessRequestResponse(
-            **access_request.model_dump(),
+            **data,
+            report_type=access_request.report_type or "general",
             technician_name=f"{user.name} {user.surname}",
             technician_id_no=access_request.technician.id_no,
             site_name=access_request.site.name

@@ -4,7 +4,7 @@ from sqlmodel import SQLModel, Field, DateTime, Relationship
 from abc import ABC
 from datetime import datetime
 
-from app.utils.enums import AccessRequestStatus
+from app.utils.enums import AccessRequestStatus, ReportType
 from app.utils.funcs import utcnow
 from .base import BaseDB
 
@@ -19,6 +19,7 @@ class BaseAccessRequest(SQLModel, ABC):
     description: str = Field(nullable=False, max_length=2000)
     start_time: datetime = Field(nullable=False, sa_type=DateTime(timezone=True)) # type: ignore
     end_time: datetime = Field(nullable=False, sa_type=DateTime(timezone=True)) # type: ignore
+    report_type: str | None = Field(default="general")
 
 
 class AccessRequest(BaseDB, BaseAccessRequest, table=True):
@@ -27,6 +28,8 @@ class AccessRequest(BaseDB, BaseAccessRequest, table=True):
     status: AccessRequestStatus = Field(default=AccessRequestStatus.REQUESTED)
     access_code: str | None = Field(default=None)
     approved_at: datetime | None = Field(default=None, sa_type=DateTime(timezone=True)) # type: ignore
+    task_id: UUID | None = Field(default=None, foreign_key="tasks.id")
+    report_type: str | None = Field(default="general", nullable=True)
 
     technician: 'Technician' = Relationship(back_populates="access_requests")
     site: 'Site' = Relationship(back_populates="access_requests")
@@ -48,11 +51,13 @@ class AccessRequestCreate(BaseAccessRequest): ...
 class AccessRequestUpdate(SQLModel):
     description: str | None = Field(default=None, max_length=2000)
     start_time: datetime | None = Field(default=None)
+    task_id: UUID | None = Field(default=None)
 
 
 class AccessRequestResponse(BaseDB, BaseAccessRequest):
     status: AccessRequestStatus = Field(default=AccessRequestStatus.REQUESTED)
     access_code: str | None = Field(default=None)
+    task_id: UUID | None = Field(default=None)
     technician_name: str = Field(default="")
     technician_id_no: str = Field(default="")
     site_name: str = Field(default="")

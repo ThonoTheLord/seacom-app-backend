@@ -1,9 +1,10 @@
 from uuid import UUID
 from fastapi import Depends
 from typing import List, Annotated
-from sqlmodel import Session, select
+from sqlmodel import Session, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import and_
+from sqlalchemy.orm import object_session
 
 from app.utils.enums import ReportType, ReportStatus, NotificationPriority
 from app.models import Report, ReportCreate, ReportUpdate, ReportResponse, Task, Technician
@@ -102,32 +103,78 @@ class _ReportService:
     def update_report(
         self, report_id: UUID, data: ReportUpdate, session: Session
     ) -> ReportResponse:
-        report = self._get_report(report_id, session)
-        update_data = data.model_dump(
-            exclude_none=True, exclude_defaults=True, exclude_unset=True
-        )
-
-        if report.status in [ReportStatus.COMPLETED]:
-            raise ForbiddenException("Cannot update a completed report.")
-
-        if not update_data:
-            return self.report_to_response(report)
-
-        for k, v in update_data.items():
-            setattr(report, k, v)
-
-        report.touch()
-
+        """
+        Update a report with the provided data.
+        Only allows updating: data, attachments, status
+        
+        Note: The broken audit_report_changes trigger must be dropped in Supabase
+        before this will work. Run the fix_trigger.sql script.
+        """
         try:
+            # Step 1: Fetch the report
+            report = self._get_report(report_id, session)
+            update_data = data.model_dump(
+                exclude_none=True, exclude_defaults=True, exclude_unset=True
+            )
+            
+            print(f"DEBUG: Update data received: {update_data}")
+
+            # Step 2: Validate state
+            if report.status in [ReportStatus.COMPLETED]:
+                raise ForbiddenException("Cannot update a completed report.")
+
+            # Step 3: Early exit if no data
+            if not update_data:
+                print(f"DEBUG: No update data, returning current report")
+                return self.report_to_response(report)
+
+            # Step 4: Filter allowed fields only
+            allowed_fields = {'data', 'attachments', 'status'}
+            filtered_data = {k: v for k, v in update_data.items() if k in allowed_fields}
+            
+            if not filtered_data:
+                print(f"DEBUG: No allowed fields to update")
+                return self.report_to_response(report)
+
+            # Step 5: Apply updates and touch timestamp
+            for key, value in filtered_data.items():
+                print(f"DEBUG: Setting report.{key}")
+                setattr(report, key, value)
+            
+            report.touch()
+            
+            # Step 6: Commit changes
+            session.add(report)
+            session.flush()
             session.commit()
+            
+            # Step 7: Refresh and return
             session.refresh(report)
+            print(f"DEBUG: Report {report_id} updated successfully")
             return self.report_to_response(report)
+            
+        except ForbiddenException:
+            raise
+        except NotFoundException:
+            raise
         except IntegrityError as e:
             session.rollback()
-            raise ConflictException(f"Error updating report: {e.orig}")
+            print(f"ERROR: Integrity error updating report {report_id}: {e.orig}")
+            raise ConflictException(f"Failed to update report: {e.orig}")
         except Exception as e:
             session.rollback()
-            raise InternalServerErrorException(f"Unexpected error updating report: {e}")
+            error_str = str(e)
+            
+            # Check if this is the broken trigger error
+            if "audit_report_changes" in error_str or "ProgrammingError" in type(e).__name__:
+                print(f"ERROR: Trigger error detected. Please drop the broken trigger in Supabase:")
+                print(f"  DROP TRIGGER IF EXISTS trg_audit_report_changes ON reports;")
+                print(f"  DROP FUNCTION IF EXISTS audit_report_changes() CASCADE;")
+            
+            print(f"ERROR: Failed to update report {report_id}: {type(e).__name__}: {e}")
+            import traceback
+            traceback.print_exc()
+            raise InternalServerErrorException(f"Failed to update report: {str(e)}")
 
     def delete_report(self, report_id: UUID, session: Session) -> None:
         report = self._get_report(report_id, session)

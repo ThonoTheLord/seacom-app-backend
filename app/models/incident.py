@@ -18,7 +18,6 @@ class BaseIncident(SQLModel, ABC):
     seacom_ref: str | None = Field(default=None, max_length=100)
     description: str = Field(max_length=2000, nullable=False)
     start_time: datetime = Field(sa_type=DateTime(timezone=True), nullable=False) # type: ignore
-    end_time: datetime = Field(sa_type=DateTime(timezone=True), nullable=False) # type: ignore
     attachments: dict[str, str] | None = Field(default=None, sa_type=JSONB)
     site_id: UUID = Field(foreign_key="sites.id")
     technician_id: UUID = Field(foreign_key="technicians.id")
@@ -52,13 +51,18 @@ class IncidentUpdate(SQLModel):
     seacom_ref: str | None = Field(default=None, max_length=100)
     description: str | None = Field(default=None, max_length=2000, nullable=False)
     start_time: datetime | None = Field(default=None, sa_type=DateTime(timezone=True), nullable=False) # type: ignore
-    end_time: datetime | None = Field(default=None, sa_type=DateTime(timezone=True), nullable=False) # type: ignore
     attachments: dict[str, str] | None = Field(default=None, sa_column=Column(JSONB))
     site_id: UUID | None = Field(default=None, foreign_key="sites.id")
     technician_id: UUID | None = Field(default=None, foreign_key="technicians.id")
 
 
-class IncidentResponse(BaseDB, BaseIncident):
+class IncidentResponse(BaseDB, SQLModel):
+    seacom_ref: str | None = Field(default=None, max_length=100)
+    description: str = Field(max_length=2000, nullable=False)
+    start_time: datetime | None = Field(default=None, sa_type=DateTime(timezone=True)) # type: ignore
+    attachments: dict[str, str] | None = Field(default=None, sa_type=JSONB)
+    site_id: UUID = Field(foreign_key="sites.id")
+    technician_id: UUID = Field(foreign_key="technicians.id")
     status: IncidentStatus = Field(default=IncidentStatus.OPEN)
     resolved_at: datetime | None = Field(default=None)
     site_name: str = Field(default="", description="")

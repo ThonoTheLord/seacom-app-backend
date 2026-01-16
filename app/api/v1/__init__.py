@@ -10,6 +10,7 @@ from .notification import router as notification_router
 from .access_request import router as access_request_router
 from .routine_check import router as routine_check_router
 from .routine_issue import router as routine_issue_router
+from .routine_inspection import router as routine_inspection_router
 
 router = APIRouter(prefix="/v1")
 router.include_router(auth_router)
@@ -23,6 +24,4 @@ router.include_router(notification_router)
 router.include_router(access_request_router)
 router.include_router(routine_check_router)
 router.include_router(routine_issue_router)
-router.include_router(access_request_router)
-router.include_router(routine_check_router)
-router.include_router(routine_issue_router)
+router.include_router(routine_inspection_router)

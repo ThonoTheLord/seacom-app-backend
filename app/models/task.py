@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from .site import Site
     from technician import Technician
     from .report import Report
+    from .routine_inspection import RoutineInspection
 
 
 class BaseTask(SQLModel, ABC):
@@ -21,6 +22,7 @@ class BaseTask(SQLModel, ABC):
     start_time: datetime = Field(sa_type=DateTime(timezone=True), nullable=False) # type: ignore
     end_time: datetime = Field(sa_type=DateTime(timezone=True), nullable=False) # type: ignore
     task_type: TaskType = Field(nullable=False)
+    report_type: str | None = Field(default="general")
     attachments: dict[str, str] | None = Field(default=None, sa_type=JSONB)
     site_id: UUID = Field(foreign_key="sites.id")
     technician_id: UUID = Field(foreign_key="technicians.id")
@@ -35,6 +37,7 @@ class Task(BaseDB, BaseTask, table=True):
     site: 'Site' = Relationship(back_populates="tasks")
     technician: 'Technician' = Relationship(back_populates="tasks")
     reports: List['Report'] = Relationship(back_populates="task")
+    routine_inspections: List['RoutineInspection'] = Relationship(back_populates="task")
 
     def start(self) -> None:
         """"""
@@ -62,6 +65,7 @@ class TaskUpdate(SQLModel):
     start_time: datetime | None = Field(default=None, sa_type=DateTime(timezone=True), nullable=False) # type: ignore
     end_time: datetime | None = Field(default=None, sa_type=DateTime(timezone=True), nullable=False) # type: ignore
     task_type: TaskType | None = Field(default=None, nullable=False)
+    report_type: str | None = Field(default=None)
     attachments: dict[str, str] | None = Field(default=None, sa_column=Column(JSONB))
     site_id: UUID | None = Field(default=None, foreign_key="sites.id")
     technician_id: UUID | None = Field(default=None, foreign_key="technicians.id")
@@ -70,6 +74,7 @@ class TaskUpdate(SQLModel):
 class TaskResponse(BaseDB, BaseTask):
     status: TaskStatus
     completed_at: datetime | None = Field(default=None) # type: ignore
+    report_type: str | None = Field(default="general")
     site_name: str = Field(default="", description="")
     site_region: Region = Field(default="", description="")
     technician_fullname: str = Field(default="", description="")

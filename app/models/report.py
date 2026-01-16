@@ -47,6 +47,7 @@ class ReportCreate(BaseReport): ...
 class ReportUpdate(SQLModel):
     data: dict[str, Any] | None = Field(default=None)
     attachments: dict[str, str] | None = Field(default=None)
+    status: ReportStatus | None = Field(default=None)
 
 
 class ReportResponse(BaseDB, BaseReport):
