@@ -369,10 +369,10 @@ def get_regional_sla_analytics(
     try:
         with Database.session() as session:
             result = session.execute(
-                text("SELECT * FROM v_regional_sla_analytics ORDER BY overall_sla_compliance DESC")
+                text("SELECT * FROM v_regional_sla_analytics ORDER BY overall_sla_compliance DESC NULLS LAST")
             )
             records = [dict(row._mapping) for row in result]
-            return records
+            return {"data": records, "total": len(records)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
