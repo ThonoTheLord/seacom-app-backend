@@ -1,8 +1,11 @@
 from uuid import UUID
 from fastapi import Depends
-from typing import List, Annotated
+from typing import List, Annotated, Tuple
 from sqlmodel import Session, select
 from sqlalchemy.exc import IntegrityError
+from geoalchemy2.functions import ST_DWithin, ST_Distance, ST_SetSRID, ST_MakePoint
+from geoalchemy2.shape import from_shape
+from shapely.geometry import Point
 
 from app.utils.enums import Region
 from app.models import Site, SiteCreate, SiteUpdate, SiteResponse
@@ -15,12 +18,32 @@ from app.exceptions.http import (
 
 class _SiteService:
     def site_to_response(self, site: Site) -> SiteResponse:
+        coords = site.get_coordinates()
         return SiteResponse(
-            **site.model_dump(),
-            )
+            id=site.id,
+            created_at=site.created_at,
+            updated_at=site.updated_at,
+            deleted_at=site.deleted_at,
+            name=site.name,
+            region=site.region,
+            address=site.address,
+            latitude=coords[0] if coords else None,
+            longitude=coords[1] if coords else None,
+            geofence_radius=site.geofence_radius,
+            num_tasks=len(site.tasks) if site.tasks else 0,
+            num_incidents=len(site.incidents) if site.incidents else 0,
+            num_reports=0,  # TODO: Add reports relationship if needed
+        )
 
     def create_site(self, data: SiteCreate, session: Session) -> SiteResponse:
-        site: Site = Site(**data.model_dump())
+        # Extract lat/lon before creating site
+        site_data = data.model_dump(exclude={"latitude", "longitude"})
+        site: Site = Site(**site_data)
+        
+        # Set location if coordinates provided
+        if data.latitude is not None and data.longitude is not None:
+            site.set_location(data.latitude, data.longitude)
+        
         try:
             session.add(site)
             session.commit()
@@ -64,6 +87,13 @@ class _SiteService:
         if not update_data:
             return self.site_to_response(site)
 
+        # Handle location update separately
+        lat = update_data.pop("latitude", None)
+        lon = update_data.pop("longitude", None)
+        
+        if lat is not None and lon is not None:
+            site.set_location(lat, lon)
+
         for k, v in update_data.items():
             setattr(site, k, v)
 
@@ -91,6 +121,50 @@ class _SiteService:
         if not site:
             raise NotFoundException("site not found")
         return site
+
+    def find_nearby_sites(
+        self, 
+        latitude: float, 
+        longitude: float, 
+        radius_meters: float,
+        session: Session,
+        limit: int = 10
+    ) -> List[SiteResponse]:
+        """Find sites within a given radius of a point."""
+        point = ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)
+        
+        statement = (
+            select(Site)
+            .where(Site.deleted_at.is_(None))
+            .where(Site.location.isnot(None))
+            .where(ST_DWithin(Site.location, point, radius_meters, use_spheroid=True))
+            .order_by(ST_Distance(Site.location, point))
+            .limit(limit)
+        )
+        
+        sites = session.exec(statement).all()
+        return [self.site_to_response(site) for site in sites]
+
+    def is_within_geofence(
+        self,
+        site_id: UUID,
+        latitude: float,
+        longitude: float,
+        session: Session
+    ) -> bool:
+        """Check if a point is within the site's geofence."""
+        site = self._get_site(site_id, session)
+        
+        if site.location is None:
+            return False
+        
+        point = ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)
+        
+        result = session.execute(
+            select(ST_DWithin(site.location, point, site.geofence_radius, use_spheroid=True))
+        ).scalar()
+        
+        return bool(result)
 
 
 def get_site_service() -> _SiteService:

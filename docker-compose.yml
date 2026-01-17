@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  postgres-experimental:
+    image: postgis/postgis:16-3.4
+    container_name: seacom_experimental_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: experimental123
+      POSTGRES_DB: seacom_experimental_db
+    ports:
+      - "5433:5432"  # Using 5433 to avoid conflict with existing PostgreSQL
+    volumes:
+      - seacom_experimental_data:/var/lib/postgresql/data
+      - ./scripts/init-postgis.sql:/docker-entrypoint-initdb.d/init-postgis.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d seacom_experimental_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  seacom_experimental_data:
+    driver: local
