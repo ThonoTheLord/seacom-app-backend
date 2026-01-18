@@ -3,9 +3,10 @@ from fastapi import Depends
 from typing import List, Annotated
 from sqlmodel import Session, select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy import and_
 
-from app.utils.enums import TaskType, TaskStatus, NotificationPriority
-from app.models import Task, TaskCreate, TaskUpdate, TaskResponse, Site, Technician, NotificationCreate
+from app.utils.enums import TaskType, TaskStatus, NotificationPriority, ReportType, ReportStatus, UserRole
+from app.models import Task, TaskCreate, TaskUpdate, TaskResponse, Site, Technician, NotificationCreate, User, Report, ReportCreate
 from app.exceptions.http import (
     ConflictException,
     InternalServerErrorException,
@@ -69,6 +70,7 @@ class _TaskService:
     def read_tasks(
         self,
         session: Session,
+        technician_id: UUID | None = None,
         task_type: TaskType | None = None,
         status: TaskStatus | None = None,
         offset: int = 0,
@@ -76,6 +78,8 @@ class _TaskService:
     ) -> List[TaskResponse]:
         statement = select(Task).where(Task.deleted_at.is_(None))  # type: ignore
 
+        if technician_id is not None:
+            statement = statement.where(Task.technician_id == technician_id)
         if task_type is not None:
             statement = statement.where(Task.task_type == task_type)
         if status is not None:
@@ -118,36 +122,147 @@ class _TaskService:
         session.commit()
     
     def start_task(self, task_id: UUID, session: Session) -> TaskResponse:
-        """"""
+        """Start a task and notify NOC operators."""
         task = self._get_task(task_id, session)
         task.start()
         try:
             session.commit()
             session.refresh(task)
+            
+            # Notify NOC operators that task has started
+            from app.services.notification import _NotificationService
+            notification_service = _NotificationService()
+            
+            noc_users = session.exec(
+                select(User).where(
+                    and_(
+                        User.role == UserRole.NOC,
+                        User.deleted_at.is_(None)
+                    )
+                )
+            ).all()
+            
+            site_name = task.site.name if task.site else "Unknown Site"
+            tech_name = f"{task.technician.user.name} {task.technician.user.surname}" if task.technician else "Unknown"
+            
+            for noc_user in noc_users:
+                notification_service.create_notification_for_user(
+                    user_id=noc_user.id,
+                    title=f"Task Started: {site_name}",
+                    message=f"{tech_name} has started working on task at {site_name}",
+                    priority=NotificationPriority.NORMAL,
+                    session=session
+                )
+            
             return self.task_to_response(task)
         except Exception as e:
             session.rollback()
             raise InternalServerErrorException(f"Unexpected error starting task: {e}")
     
     def complete_task(self, task_id: UUID, session: Session) -> TaskResponse:
-        """"""
+        """Complete a task, create auto-report, and notify NOC operators."""
         task = self._get_task(task_id, session)
         task.complete()
         try:
             session.commit()
             session.refresh(task)
+            
+            # Create automatic report for completed task
+            report_type = ReportType.RHS if task.task_type == TaskType.RHS else ReportType.CORRECTIVE
+            site_name = task.site.name if task.site else "Unknown"
+            
+            report = Report(
+                task_id=task.id,
+                technician_id=task.technician_id,
+                report_type=report_type,
+                status=ReportStatus.PENDING,
+                service_provider="SEACOM",
+                seacom_ref=task.seacom_ref,  # Set seacom_ref from task
+                data={
+                    "auto_generated": True,
+                    "task_description": task.description,
+                    "site_name": site_name,
+                    "completed_at": task.updated_at.isoformat() if task.updated_at else None,
+                    "task_type": str(task.task_type),
+                }
+            )
+            session.add(report)
+            session.commit()
+            session.refresh(report)
+            
+            # Notify NOC operators that task is completed
+            from app.services.notification import _NotificationService
+            notification_service = _NotificationService()
+            
+            noc_users = session.exec(
+                select(User).where(
+                    and_(
+                        User.role == UserRole.NOC,
+                        User.deleted_at.is_(None)
+                    )
+                )
+            ).all()
+            
+            site_name = task.site.name if task.site else "Unknown Site"
+            tech_name = f"{task.technician.user.name} {task.technician.user.surname}" if task.technician else "Unknown"
+            
+            for noc_user in noc_users:
+                notification_service.create_notification_for_user(
+                    user_id=noc_user.id,
+                    title=f"Task Completed: {site_name}",
+                    message=f"{tech_name} completed task at {site_name}. Report auto-generated and ready for review.",
+                    priority=NotificationPriority.HIGH,
+                    session=session
+                )
+            
+            # Also notify the technician that their report was created
+            if task.technician and task.technician.user_id:
+                notification_service.create_notification_for_user(
+                    user_id=task.technician.user_id,
+                    title=f"Report Created",
+                    message=f"A {report_type} report has been auto-generated for your completed task at {site_name}. Please review and add any additional details.",
+                    priority=NotificationPriority.NORMAL,
+                    session=session
+                )
+            
             return self.task_to_response(task)
         except Exception as e:
             session.rollback()
             raise InternalServerErrorException(f"Unexpected error completing task: {e}")
     
     def fail_task(self, task_id: UUID, session: Session) -> TaskResponse:
-        """"""
+        """Mark a task as failed and notify NOC operators."""
         task = self._get_task(task_id, session)
         task.fail()
         try:
             session.commit()
             session.refresh(task)
+            
+            # Notify NOC operators that task has failed
+            from app.services.notification import _NotificationService
+            notification_service = _NotificationService()
+            
+            noc_users = session.exec(
+                select(User).where(
+                    and_(
+                        User.role == UserRole.NOC,
+                        User.deleted_at.is_(None)
+                    )
+                )
+            ).all()
+            
+            site_name = task.site.name if task.site else "Unknown Site"
+            tech_name = f"{task.technician.user.name} {task.technician.user.surname}" if task.technician else "Unknown"
+            
+            for noc_user in noc_users:
+                notification_service.create_notification_for_user(
+                    user_id=noc_user.id,
+                    title=f"Task Failed: {site_name}",
+                    message=f"{tech_name} reported that the task at {site_name} could not be completed. Please review and reassign.",
+                    priority=NotificationPriority.CRITICAL,
+                    session=session
+                )
+            
             return self.task_to_response(task)
         except Exception as e:
             session.rollback()

@@ -11,10 +11,11 @@ from abc import ABC
 from .base import BaseDB
 from app.utils.funcs import utcnow
 
-SA_ID = Annotated[str, StringConstraints(
+# ID number constraint - supports various formats (SA ID, passport, work permit, etc.)
+ID_NUMBER = Annotated[str, StringConstraints(
     strip_whitespace=True,
-    min_length=13,
-    max_length=13
+    min_length=5,
+    max_length=20
 )]
 
 if TYPE_CHECKING:
@@ -28,7 +29,7 @@ if TYPE_CHECKING:
 
 class BaseTechnician(SQLModel, ABC):
     phone: str = Field(nullable=False, max_length=13, min_length=10, description="Phone number", unique=True)
-    id_no: str = Field(nullable=False, unique=True, description="SA ID number")
+    id_no: str = Field(nullable=False, unique=True, description="ID/Passport number")
     user_id: UUID = Field(nullable=False, foreign_key="users.id")
 
 

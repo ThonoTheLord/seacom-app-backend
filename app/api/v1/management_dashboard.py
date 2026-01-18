@@ -11,6 +11,16 @@ from sqlalchemy.orm import Session
 from app.database import Database
 from app.services.auth import CurrentUser
 from app.models.user import User
+import os
+import shutil
+from datetime import datetime, timezone
+
+try:
+    import psutil
+    _HAS_PSUTIL = True
+except Exception:
+    psutil = None
+    _HAS_PSUTIL = False
 
 router = APIRouter(prefix="/dashboard", tags=["management-dashboard"])
 
@@ -473,9 +483,43 @@ def dashboard_health(
                 text("SELECT 1 as status")
             )
             result.scalar()
+        # Collect system metrics
+        root = os.path.abspath(os.sep)
+        # Disk
+        try:
+            du = shutil.disk_usage(root)
+            disk_total = du.total
+            disk_used = du.used
+            disk_percent = round((du.used / du.total) * 100, 1) if du.total > 0 else 0
+        except Exception:
+            disk_total = disk_used = disk_percent = None
+
+        # Memory and CPU (prefer psutil)
+        cpu_percent = None
+        mem_total = mem_used = mem_percent = None
+        if _HAS_PSUTIL and psutil is not None:
+            try:
+                cpu_percent = psutil.cpu_percent(interval=0.1)
+                vm = psutil.virtual_memory()
+                mem_total = vm.total
+                mem_used = vm.used
+                mem_percent = vm.percent
+            except Exception:
+                cpu_percent = None
+        # Fallbacks: leave as None when not available
+
         return {
             "status": "healthy",
-            "timestamp": Database.get_current_timestamp()
+            "timestamp": Database.get_current_timestamp(),
+            "system": {
+                "cpu_percent": cpu_percent,
+                "memory_total": mem_total,
+                "memory_used": mem_used,
+                "memory_percent": mem_percent,
+                "disk_total": disk_total,
+                "disk_used": disk_used,
+                "disk_percent": disk_percent,
+            }
         }
     except Exception as e:
         raise HTTPException(

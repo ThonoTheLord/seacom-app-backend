@@ -27,6 +27,7 @@ class AccessRequest(BaseDB, BaseAccessRequest, table=True):
 
     status: AccessRequestStatus = Field(default=AccessRequestStatus.REQUESTED)
     access_code: str | None = Field(default=None)
+    seacom_ref: str | None = Field(default=None, max_length=100, description="SEACOM Reference Number from client")
     approved_at: datetime | None = Field(default=None, sa_type=DateTime(timezone=True)) # type: ignore
     task_id: UUID | None = Field(default=None, foreign_key="tasks.id")
     report_type: str | None = Field(default="general", nullable=True)
@@ -34,10 +35,11 @@ class AccessRequest(BaseDB, BaseAccessRequest, table=True):
     technician: 'Technician' = Relationship(back_populates="access_requests")
     site: 'Site' = Relationship(back_populates="access_requests")
 
-    def approve(self, code: str) -> None:
+    def approve(self, seacom_ref: str) -> None:
         self.status = AccessRequestStatus.APPROVED
         self.approved_at = utcnow()
-        self.access_code = code
+        self.seacom_ref = seacom_ref
+        self.access_code = seacom_ref  # Keep for backwards compatibility
         self.touch()
     
     def reject(self) -> None:
@@ -57,6 +59,7 @@ class AccessRequestUpdate(SQLModel):
 class AccessRequestResponse(BaseDB, BaseAccessRequest):
     status: AccessRequestStatus = Field(default=AccessRequestStatus.REQUESTED)
     access_code: str | None = Field(default=None)
+    seacom_ref: str | None = Field(default=None)
     task_id: UUID | None = Field(default=None)
     technician_name: str = Field(default="")
     technician_id_no: str = Field(default="")

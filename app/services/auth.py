@@ -5,7 +5,8 @@ from sqlmodel import select, Session
 
 from app.core import SecurityUtils
 from app.models import User, Token, TokenData, LoginForm
-from app.exceptions.http import UnauthorizedException, NotFoundException
+from app.exceptions.http import UnauthorizedException, NotFoundException, ForbiddenException
+from app.utils.enums import UserRole
 
 oauth = OAuth2PasswordBearer("/api/v1/auth/login")
 
@@ -36,6 +37,20 @@ def get_auth_service() -> _AuthService:
 def get_current_user(token: str = Depends(oauth)) -> TokenData:
     """"""
     return SecurityUtils.decode_token(token, "access")
+
+
+def require_admin(current_user: TokenData = Depends(get_current_user)) -> TokenData:
+    """Dependency that ensures the current user is an admin."""
+    if current_user.role != UserRole.ADMIN:
+        raise ForbiddenException("Admin access required")
+    return current_user
+
+
+def require_noc_or_admin(current_user: TokenData = Depends(get_current_user)) -> TokenData:
+    """Dependency that ensures the current user is NOC or admin."""
+    if current_user.role not in (UserRole.ADMIN, UserRole.NOC):
+        raise ForbiddenException("NOC or Admin access required")
+    return current_user
 
 
 AuthService = Annotated[_AuthService, Depends(get_auth_service)]

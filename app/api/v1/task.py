@@ -24,13 +24,14 @@ def create_task(
 def read_tasks(
     service: TaskService,
     session: Session,
+    technician_id: UUID | None = Query(None),
     task_type: TaskType | None = Query(None),
     status: TaskStatus | None = Query(None),
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=100, le=1000)
 ) -> List[TaskResponse]:
     """"""
-    return service.read_tasks(session, task_type, status, offset, limit)
+    return service.read_tasks(session, technician_id, task_type, status, offset, limit)
 
 
 @router.get("/{task_id}", response_model=TaskResponse, status_code=200)

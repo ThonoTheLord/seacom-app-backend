@@ -12,6 +12,11 @@ class AppSettings(BaseSettings):
     DB_PORT: int = 0
     DB_NAME: str = ""
 
+    # Supabase Storage
+    SUPABASE_URL: str = ""
+    SUPABASE_SERVICE_KEY: str = ""
+    SUPABASE_STORAGE_BUCKET: str = "attachments"
+
     # Security
     JWT_TOKEN_EXPIRE_MINUTES: int = 0
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 0

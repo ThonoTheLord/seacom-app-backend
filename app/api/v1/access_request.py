@@ -71,12 +71,15 @@ def approve_access_request(
     user: CurrentUser,
     service: AccessRequestService,
     session: Session,
-    access_code: str = Body(..., embed=True),
+    seacom_ref: str = Body(..., embed=True, description="SEACOM Reference Number from client"),
 ) -> AccessRequestResponse:
-    """"""
+    """
+    Approve an access request with SEACOM Reference Number.
+    The seacom_ref is provided by SEACOM client and will be propagated to related task.
+    """
     if user.role not in (UserRole.NOC, UserRole.MANAGER):
         raise ForbiddenException("you are not allowed to perform this action")
-    return service.approve_access_request(access_request_id, access_code, session)
+    return service.approve_access_request(access_request_id, seacom_ref, session)
 
 
 @router.patch("/{access_request_id}/reject", response_model=AccessRequestResponse, status_code=200)

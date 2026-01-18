@@ -21,9 +21,17 @@ from app.services.pdf import get_pdf_service
 class _ReportService:
     def report_to_response(self, report: Report) -> ReportResponse:
         user = report.technician.user
+        # Get seacom_ref from report, or fall back to task's seacom_ref
+        seacom_ref = report.seacom_ref
+        if not seacom_ref and report.task:
+            seacom_ref = report.task.seacom_ref
+        
+        # Build response, excluding seacom_ref from dump to avoid duplicate
+        report_data = report.model_dump(exclude={"seacom_ref"})
         return ReportResponse(
-            **report.model_dump(),
-            technician_fullname=f"{user.name} {user.surname}"
+            **report_data,
+            technician_fullname=f"{user.name} {user.surname}",
+            seacom_ref=seacom_ref
             )
 
     def create_report(self, data: ReportCreate, session: Session) -> ReportResponse:

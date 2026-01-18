@@ -18,6 +18,7 @@ class BaseReport(SQLModel):
     data: dict[str, Any] = Field(nullable=False, sa_type=JSONB)
     attachments: dict[str, str] | None = Field(default=None, sa_type=JSONB)
     service_provider: str = Field(max_length=100, nullable=False)
+    seacom_ref: str | None = Field(default=None, max_length=100)
     technician_id: UUID = Field(foreign_key="technicians.id")
     task_id: UUID = Field(foreign_key="tasks.id")
 

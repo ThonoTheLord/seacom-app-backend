@@ -12,6 +12,12 @@ from .routine_check import router as routine_check_router
 from .routine_issue import router as routine_issue_router
 from .routine_inspection import router as routine_inspection_router
 from .management_dashboard import router as management_dashboard_router
+from .file import router as file_router
+from .client import router as client_router
+from os import getenv
+_allow_dev = getenv("ALLOW_DEV_ENDPOINTS", "false").lower() == "true"
+if _allow_dev:
+	from .dev_client import router as dev_client_router
 
 router = APIRouter(prefix="/v1")
 router.include_router(auth_router)
@@ -27,3 +33,7 @@ router.include_router(routine_check_router)
 router.include_router(routine_issue_router)
 router.include_router(routine_inspection_router)
 router.include_router(management_dashboard_router)
+router.include_router(file_router)
+router.include_router(client_router)
+if _allow_dev:
+	router.include_router(dev_client_router)

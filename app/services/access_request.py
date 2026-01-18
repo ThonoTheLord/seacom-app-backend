@@ -3,8 +3,9 @@ from fastapi import Depends
 from typing import List, Annotated
 from sqlmodel import Session, select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy import and_
 
-from app.utils.enums import AccessRequestStatus
+from app.utils.enums import AccessRequestStatus, NotificationPriority, UserRole
 from app.models import (
     AccessRequest,
     AccessRequestCreate,
@@ -12,6 +13,7 @@ from app.models import (
     AccessRequestResponse,
     Site,
     Technician,
+    User,
     )
 from app.exceptions.http import (
     ConflictException,
@@ -50,6 +52,32 @@ class _AccessRequestService:
             session.add(access_request)
             session.commit()
             session.refresh(access_request)
+            
+            # Notify all NOC operators about new access request
+            from app.services.notification import _NotificationService
+            notification_service = _NotificationService()
+            
+            noc_users = session.exec(
+                select(User).where(
+                    and_(
+                        User.role == UserRole.NOC,
+                        User.deleted_at.is_(None)
+                    )
+                )
+            ).all()
+            
+            tech_name = f"{technician.user.name} {technician.user.surname}"
+            description_preview = data.description[:60] if data.description else "No description"
+            
+            for noc_user in noc_users:
+                notification_service.create_notification_for_user(
+                    user_id=noc_user.id,
+                    title=f"Access Request: {site.name}",
+                    message=f"{tech_name} is requesting access to {site.name}. Description: {description_preview}{'...' if len(data.description or '') > 60 else ''}",
+                    priority=NotificationPriority.HIGH,
+                    session=session
+                )
+            
             return self.access_request_to_response(access_request)
         except IntegrityError as e:
             session.rollback()
@@ -113,29 +141,72 @@ class _AccessRequestService:
         access_request.soft_delete()
         session.commit()
     
-    def approve_access_request(self, access_request_id: UUID, code: str, session: Session) -> AccessRequestResponse:
-        """"""
+    def approve_access_request(self, access_request_id: UUID, seacom_ref: str, session: Session) -> AccessRequestResponse:
+        """Approve an access request, update related task with seacom_ref, and notify the technician."""
+        from app.models import Task
+        
         access_request = self._get_access_request(access_request_id, session)
-        access_request.approve(code)
+        access_request.approve(seacom_ref)
         try:
             session.commit()
             session.refresh(access_request)
+            
+            # Update the related task with the seacom_ref if it exists
+            if access_request.task_id:
+                task = session.exec(
+                    select(Task).where(Task.id == access_request.task_id, Task.deleted_at.is_(None))
+                ).first()
+                if task:
+                    task.seacom_ref = seacom_ref
+                    task.touch()
+                    session.commit()
+                    session.refresh(task)
+            
+            # Notify the technician that their access request was approved
+            from app.services.notification import _NotificationService
+            notification_service = _NotificationService()
+            
+            site_name = access_request.site.name if access_request.site else "Unknown Site"
+            
+            notification_service.create_notification_for_user(
+                user_id=access_request.technician.user_id,
+                title=f"Access Approved: {site_name}",
+                message=f"Your access request for {site_name} has been approved. SEACOM Ref No.: {seacom_ref}",
+                priority=NotificationPriority.HIGH,
+                session=session
+            )
+            
             return self.access_request_to_response(access_request)
         except Exception as e:
             session.rollback()
-            raise InternalServerErrorException(f"Unexpected error approvinf access-request: {e}")
+            raise InternalServerErrorException(f"Unexpected error approving access-request: {e}")
     
     def reject_access_request(self, access_request_id: UUID, session: Session) -> AccessRequestResponse:
-        """"""
+        """Reject an access request and notify the technician."""
         access_request = self._get_access_request(access_request_id, session)
         access_request.reject()
         try:
             session.commit()
             session.refresh(access_request)
+            
+            # Notify the technician that their access request was rejected
+            from app.services.notification import _NotificationService
+            notification_service = _NotificationService()
+            
+            site_name = access_request.site.name if access_request.site else "Unknown Site"
+            
+            notification_service.create_notification_for_user(
+                user_id=access_request.technician.user_id,
+                title=f"Access Rejected: {site_name}",
+                message=f"Your access request for {site_name} has been rejected. Please contact NOC for more information.",
+                priority=NotificationPriority.NORMAL,
+                session=session
+            )
+            
             return self.access_request_to_response(access_request)
         except Exception as e:
             session.rollback()
-            raise InternalServerErrorException(f"Unexpected error completing access-request: {e}")
+            raise InternalServerErrorException(f"Unexpected error rejecting access-request: {e}")
 
     def _get_access_request(self, access_request_id: UUID, session: Session) -> AccessRequest:
         statement = select(AccessRequest).where(AccessRequest.id == access_request_id, AccessRequest.deleted_at.is_(None))  # type: ignore

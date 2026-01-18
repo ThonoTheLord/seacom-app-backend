@@ -11,6 +11,7 @@ from .notification import Notification, NotificationCreate, NotificationResponse
 from .routine_check import RoutineCheck, RoutineCheckCreate, RoutineCheckResponse, RoutineCheckUpdate
 from .routine_issues import RoutineIssue, RoutineIssueCreate, RoutineIssueResponse, RoutineIssueUpdate
 from .routine_inspection import RoutineInspection, RoutineInspectionCreate, RoutineInspectionUpdate, RoutineInspectionResponse
+from .client import Client, ClientCreate, ClientUpdate, ClientResponse
 
 __all__ = [
     "BaseDB",
@@ -62,4 +63,8 @@ __all__ = [
     "RoutineInspectionCreate",
     "RoutineInspectionUpdate",
     "RoutineInspectionResponse",
+    "Client",
+    "ClientCreate",
+    "ClientUpdate",
+    "ClientResponse",
 ]

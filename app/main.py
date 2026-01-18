@@ -4,6 +4,7 @@ from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.exceptions import RequestValidationError
 from contextlib import asynccontextmanager
 from slowapi.errors import RateLimitExceeded
+import asyncio
 
 from app.database import Database
 from app.core import app_settings
@@ -11,11 +12,48 @@ from app.core.rate_limiter import limiter
 from app.api import router
 
 
+# Background task for SLA checking
+async def sla_check_background_task():
+    """Background task that periodically checks for SLA breaches."""
+    from loguru import logger as LOG
+    
+    # Wait for startup to complete
+    await asyncio.sleep(30)
+    
+    while True:
+        try:
+            from sqlmodel import Session
+            from app.services.sla_checker import check_sla_breaches
+            
+            with Session(Database.connection) as session:
+                warnings, breaches = check_sla_breaches(session)
+                
+                if warnings or breaches:
+                    LOG.info(f"SLA Check: {len(warnings)} warnings, {len(breaches)} breaches found")
+        except Exception as e:
+            LOG.error(f"SLA check error: {e}")
+        
+        # Check every 15 minutes
+        await asyncio.sleep(15 * 60)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Database.connect(app_settings.database_url)
     Database.init()
+    
+    # Start SLA check background task
+    sla_task = asyncio.create_task(sla_check_background_task())
+    
     yield
+    
+    # Cancel background task on shutdown
+    sla_task.cancel()
+    try:
+        await sla_task
+    except asyncio.CancelledError:
+        pass
+    
     Database.disconnect()
 
 

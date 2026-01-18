@@ -5,8 +5,9 @@ from sqlmodel import Session, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import and_
 
-from app.utils.enums import IncidentStatus, NotificationPriority
-from app.models import Incident, IncidentCreate, IncidentUpdate, IncidentResponse, Site, Technician, User
+from app.utils.enums import IncidentStatus, NotificationPriority, UserRole
+from app.utils.funcs import utcnow
+from app.models import Incident, IncidentCreate, IncidentUpdate, IncidentResponse, Site, Technician, User, Client
 from app.exceptions.http import (
     ConflictException,
     InternalServerErrorException,
@@ -17,12 +18,24 @@ from app.exceptions.http import (
 class _IncidentService:
     def incident_to_response(self, incident: Incident) -> IncidentResponse:
         user = incident.technician.user
+        # Calculate num_attachments - attachments can be {files: [...]} or {}
+        attachments = incident.attachments or {}
+        num_attachments = len(attachments.get("files", [])) if isinstance(attachments, dict) else 0
+        
+        # Get client info
+        client_name = ""
+        client_code = ""
+        if incident.client:
+            client_name = incident.client.name
+        # client_code is deprecated/removed
         return IncidentResponse(
             **incident.model_dump(),
             site_name=incident.site.name,
             technician_fullname=f"{user.name} {user.surname}",
-            num_attachments=len(incident.attachments or [])
-            )
+            client_name=client_name,
+            client_code=client_code,
+            num_attachments=num_attachments
+        )
 
     def create_incident(self, data: IncidentCreate, session: Session) -> IncidentResponse:
         # Handle site
@@ -37,19 +50,31 @@ class _IncidentService:
         if not technician:
             raise NotFoundException("technician not found")
 
-        incident: Incident = Incident(**data.model_dump(), site=site, technician=technician)
+        # Auto-set start_time to now if not provided
+        incident_data = data.model_dump()
+        if not incident_data.get("start_time"):
+            incident_data["start_time"] = utcnow()
+
+        incident: Incident = Incident(**incident_data, site=site, technician=technician)
         try:
             session.add(incident)
             session.commit()
             session.refresh(incident)
             
-            # Create notification for NOC operators about new incident
+            # Create notifications
             from app.services.notification import _NotificationService
-            from app.utils.enums import UserRole
-            
             notification_service = _NotificationService()
             
-            # Notify all NOC operators
+            # Notify the assigned technician about the incident
+            notification_service.create_notification_for_user(
+                user_id=technician.user_id,
+                title=f"Incident Assigned: {site.name}",
+                message=f"You have been assigned to handle an incident at {site.name}. {data.description[:80]}...",
+                priority=NotificationPriority.CRITICAL,
+                session=session
+            )
+            
+            # Notify all NOC operators about new incident
             noc_users = session.exec(
                 select(User).where(
                     and_(
@@ -62,9 +87,9 @@ class _IncidentService:
             for noc_user in noc_users:
                 notification_service.create_notification_for_user(
                     user_id=noc_user.id,
-                    title=f"New Incident Reported",
-                    message=f"Critical incident reported at {site.name} by {technician.user.name}. {data.description[:80]}...",
-                    priority=NotificationPriority.CRITICAL,
+                    title=f"New Incident Created",
+                    message=f"Incident created at {site.name}, assigned to {technician.user.name}. {data.description[:60]}...",
+                    priority=NotificationPriority.HIGH,
                     session=session
                 )
             
@@ -85,6 +110,7 @@ class _IncidentService:
         session: Session,
         technician_id: UUID | None = None,
         status: IncidentStatus | None = None,
+        client_id: UUID | None = None,
         offset: int = 0,
         limit: int = 100,
     ) -> List[IncidentResponse]:
@@ -94,6 +120,8 @@ class _IncidentService:
             statement = statement.where(Incident.technician_id == technician_id)
         if status is not None:
             statement = statement.where(Incident.status == status)
+        if client_id is not None:
+            statement = statement.where(Incident.client_id == client_id)
 
         statement = statement.offset(offset).limit(limit)
         incidents = session.exec(statement).all()
@@ -132,24 +160,76 @@ class _IncidentService:
         session.commit()
     
     def start_incident(self, incident_id: UUID, session: Session) -> IncidentResponse:
-        """"""
+        """Start working on an incident and notify NOC operators."""
         incident = self._get_incident(incident_id, session)
         incident.start()
         try:
             session.commit()
             session.refresh(incident)
+            
+            # Notify NOC operators that incident work has started
+            from app.services.notification import _NotificationService
+            notification_service = _NotificationService()
+            
+            noc_users = session.exec(
+                select(User).where(
+                    and_(
+                        User.role == UserRole.NOC,
+                        User.deleted_at.is_(None)
+                    )
+                )
+            ).all()
+            
+            site_name = incident.site.name if incident.site else "Unknown Site"
+            tech_name = f"{incident.technician.user.name} {incident.technician.user.surname}" if incident.technician else "Unknown"
+            
+            for noc_user in noc_users:
+                notification_service.create_notification_for_user(
+                    user_id=noc_user.id,
+                    title=f"Incident In Progress: {site_name}",
+                    message=f"{tech_name} has started working on the incident at {site_name}",
+                    priority=NotificationPriority.NORMAL,
+                    session=session
+                )
+            
             return self.incident_to_response(incident)
         except Exception as e:
             session.rollback()
             raise InternalServerErrorException(f"Unexpected error starting incident: {e}")
     
     def resolve_incident(self, incident_id: UUID, session: Session) -> IncidentResponse:
-        """"""
+        """Resolve an incident and notify NOC operators."""
         incident = self._get_incident(incident_id, session)
         incident.resolve()
         try:
             session.commit()
             session.refresh(incident)
+            
+            # Notify NOC operators that incident is resolved
+            from app.services.notification import _NotificationService
+            notification_service = _NotificationService()
+            
+            noc_users = session.exec(
+                select(User).where(
+                    and_(
+                        User.role == UserRole.NOC,
+                        User.deleted_at.is_(None)
+                    )
+                )
+            ).all()
+            
+            site_name = incident.site.name if incident.site else "Unknown Site"
+            tech_name = f"{incident.technician.user.name} {incident.technician.user.surname}" if incident.technician else "Unknown"
+            
+            for noc_user in noc_users:
+                notification_service.create_notification_for_user(
+                    user_id=noc_user.id,
+                    title=f"Incident Resolved: {site_name}",
+                    message=f"{tech_name} has resolved the incident at {site_name}",
+                    priority=NotificationPriority.HIGH,
+                    session=session
+                )
+            
             return self.incident_to_response(incident)
         except Exception as e:
             session.rollback()
