@@ -126,6 +126,28 @@ def get_incident_sla_detail(
 
 
 # ============================================================
+# Presence: NOC operator online listing (Managers only)
+# ============================================================
+@router.get("/noc-online")
+def get_noc_online(
+    current_user: CurrentUser,
+    cutoff_minutes: int = Query(10, ge=1, le=60)
+) -> dict:
+    """Return list of active NOC operator sessions (restricted to Manager/Admin)."""
+    from app.services.presence import PresenceService
+    from app.utils.enums import UserRole
+
+    if current_user.role not in (UserRole.MANAGER, UserRole.ADMIN):
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+
+    try:
+        data = PresenceService.list_active_noc_operators(cutoff_minutes=cutoff_minutes)
+        return {"data": data, "total": len(data)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================
 # Task Performance & Compliance
 # ============================================================
 @router.get("/task-performance")

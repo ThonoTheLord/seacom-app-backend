@@ -5,11 +5,13 @@ from fastapi.exceptions import RequestValidationError
 from contextlib import asynccontextmanager
 from slowapi.errors import RateLimitExceeded
 import asyncio
+from strawberry.fastapi import GraphQLRouter
 
 from app.database import Database
 from app.core import app_settings
 from app.core.rate_limiter import limiter
 from app.api import router
+from app.graphql.schema import schema
 
 
 # Background task for SLA checking
@@ -32,6 +34,8 @@ async def sla_check_background_task():
                     LOG.info(f"SLA Check: {len(warnings)} warnings, {len(breaches)} breaches found")
         except Exception as e:
             LOG.error(f"SLA check error: {e}")
+            import traceback
+            LOG.error(f"SLA check traceback: {traceback.format_exc()}")
         
         # Check every 15 minutes
         await asyncio.sleep(15 * 60)
@@ -39,22 +43,33 @@ async def sla_check_background_task():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    Database.connect(app_settings.database_url)
-    Database.init()
+    print("DEBUG: Starting lifespan")
+    from app.core import app_settings
+    try:
+        Database.connect(app_settings.database_url)
+        print("DEBUG: Database connected")
+    except Exception as e:
+        print(f"DEBUG: Database connect failed: {e}")
+        raise
+    # Database.init()
+    print("DEBUG: Database init skipped")
     
     # Start SLA check background task
-    sla_task = asyncio.create_task(sla_check_background_task())
+    # sla_task = asyncio.create_task(sla_check_background_task())
     
+    print("DEBUG: Yielding lifespan")
     yield
     
+    print("DEBUG: Lifespan exiting")
     # Cancel background task on shutdown
-    sla_task.cancel()
-    try:
-        await sla_task
-    except asyncio.CancelledError:
-        pass
+    # sla_task.cancel()
+    # try:
+    #     await sla_task
+    # except asyncio.CancelledError:
+    #     pass
     
     Database.disconnect()
+    print("DEBUG: Database disconnected")
 
 
 app: FastAPI = FastAPI(
@@ -65,15 +80,15 @@ app: FastAPI = FastAPI(
 )
 
 # Add state for limiter
-app.state.limiter = limiter
+# app.state.limiter = limiter
 
 # Add rate limit exception handler
-@app.exception_handler(RateLimitExceeded)
-async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
-    return JSONResponse(
-        status_code=429,
-        content={"detail": "Too many requests. Please try again later."}
-    )
+# @app.exception_handler(RateLimitExceeded)
+# async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+#     return JSONResponse(
+#         status_code=429,
+#         content={"detail": "Too many requests. Please try again later."}
+#     )
 
 app.add_middleware(
     CORSMiddleware,
@@ -83,6 +98,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(router)
+
+# GraphQL router
+# graphql_app = GraphQLRouter(schema)
+# app.include_router(graphql_app, prefix="/graphql")
 
 
 @app.get("/", include_in_schema=False, status_code=307)

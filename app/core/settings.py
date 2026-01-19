@@ -24,6 +24,12 @@ class AppSettings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ALLOWED_ORIGINS: str = Field(default="http://localhost:3000,http://localhost:5173")
 
+    # Presence backend (db | redis). If 'redis' and REDIS_URL is set, presence uses Redis for heartbeats.
+    PRESENCE_BACKEND: str = Field(default="db", description="Storage for presence: 'db' or 'redis'")
+    REDIS_URL: str | None = Field(default=None, description="Optional Redis URL for presence/pubsub (e.g. redis://host:6379/0)")
+    PRESENCE_REDIS_TTL_SECONDS: int = Field(default=300, description="How long (s) a heartbeat is considered valid in Redis")
+    PRESENCE_PUBSUB_CHANNEL: str = Field(default="presence_events", description="Redis pubsub channel for presence events")
+
     @field_validator("JWT_SECRET_KEY", mode="before")
     @classmethod
     def validate_jwt_secret(cls, v: str) -> str:

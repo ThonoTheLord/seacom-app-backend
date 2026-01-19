@@ -78,6 +78,8 @@ def check_sla_breaches(session: Session) -> Tuple[List[dict], List[dict]]:
         Tuple of (warnings, breaches) where each is a list of incident info dicts
     """
     from app.services.notification import _NotificationService
+    from app.services.webhook import WebhookService
+    import asyncio
     notification_service = _NotificationService()
     
     now = utcnow()
@@ -103,14 +105,17 @@ def check_sla_breaches(session: Session) -> Tuple[List[dict], List[dict]]:
         
         # Check if SLA has been breached
         if now >= sla_deadline:
-            breaches.append({
+            breach_data = {
                 "incident_id": str(incident.id),
                 "site_name": site_name,
                 "technician_name": tech_name,
                 "priority": priority,
                 "sla_deadline": sla_deadline.isoformat(),
-                "time_overdue": str(now - sla_deadline)
-            })
+                "time_overdue": str(now - sla_deadline),
+                "event_type": "sla_breach",
+                "timestamp": now.isoformat()
+            }
+            breaches.append(breach_data)
             
             # Send breach notification to technician
             if incident.technician and incident.technician.user_id:
@@ -121,20 +126,32 @@ def check_sla_breaches(session: Session) -> Tuple[List[dict], List[dict]]:
                     priority=NotificationPriority.CRITICAL,
                     session=session
                 )
+            
+            # Send webhook for breach
+            import threading
+            def send_webhook_async():
+                import asyncio
+                asyncio.run(WebhookService.send_webhook("sla_breach", breach_data))
+            thread = threading.Thread(target=send_webhook_async)
+            thread.daemon = True
+            thread.start()
         
         # Check if approaching SLA breach (warning zone)
         elif now >= warning_time:
             time_remaining = sla_deadline - now
             minutes_remaining = int(time_remaining.total_seconds() / 60)
             
-            warnings.append({
+            warning_data = {
                 "incident_id": str(incident.id),
                 "site_name": site_name,
                 "technician_name": tech_name,
                 "priority": priority,
                 "sla_deadline": sla_deadline.isoformat(),
-                "time_remaining_minutes": minutes_remaining
-            })
+                "time_remaining_minutes": minutes_remaining,
+                "event_type": "sla_warning",
+                "timestamp": now.isoformat()
+            }
+            warnings.append(warning_data)
             
             # Send warning notification to technician
             if incident.technician and incident.technician.user_id:
@@ -152,6 +169,15 @@ def check_sla_breaches(session: Session) -> Tuple[List[dict], List[dict]]:
                     priority=NotificationPriority.HIGH,
                     session=session
                 )
+            
+            # Send webhook for warning
+            import threading
+            def send_webhook_async():
+                import asyncio
+                asyncio.run(WebhookService.send_webhook("sla_warning", warning_data))
+            thread = threading.Thread(target=send_webhook_async)
+            thread.daemon = True
+            thread.start()
     
     return warnings, breaches
 

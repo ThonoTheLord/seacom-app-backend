@@ -12,6 +12,7 @@ from .routine_check import RoutineCheck, RoutineCheckCreate, RoutineCheckRespons
 from .routine_issues import RoutineIssue, RoutineIssueCreate, RoutineIssueResponse, RoutineIssueUpdate
 from .routine_inspection import RoutineInspection, RoutineInspectionCreate, RoutineInspectionUpdate, RoutineInspectionResponse
 from .client import Client, ClientCreate, ClientUpdate, ClientResponse
+from .webhook import Webhook
 
 __all__ = [
     "BaseDB",
@@ -67,4 +68,5 @@ __all__ = [
     "ClientCreate",
     "ClientUpdate",
     "ClientResponse",
+    "Webhook",
 ]

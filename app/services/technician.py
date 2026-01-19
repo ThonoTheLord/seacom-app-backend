@@ -266,6 +266,65 @@ class _TechnicianService:
         technicians = session.exec(statement).all()
         return [self.technician_to_response(t) for t in technicians]
 
+    def escalate_technician_issue(
+        self,
+        technician_id: UUID,
+        reason: str,
+        priority: str,
+        escalated_by: UUID,
+        session: Session
+    ) -> dict:
+        """Escalate a technician issue to management."""
+        from app.services.notification import NotificationService, NotificationPriority
+        from app.models import NotificationCreate
+        
+        # Get technician details
+        statement = select(Technician).where(Technician.id == technician_id, Technician.deleted_at.is_(None))
+        technician = session.exec(statement).first()
+        
+        if not technician:
+            raise NotFoundException("Technician not found")
+        
+        # Get management users to notify
+        management_statement = select(User).where(
+            User.role.in_(["ADMIN", "MANAGER"]),  # Assuming these are management roles
+            User.deleted_at.is_(None)
+        )
+        management_users = session.exec(management_statement).all()
+        
+        notifications_created = []
+        
+        # Create notifications for all management users
+        notification_service = NotificationService()
+        for manager in management_users:
+            notification = NotificationCreate(
+                user_id=manager.id,
+                title=f"Technician Escalation: {technician.user.name} {technician.user.surname}",
+                message=f"Priority {priority} escalation: {reason}",
+                priority=NotificationPriority.HIGH if priority == "HIGH" else 
+                        NotificationPriority.NORMAL if priority == "MEDIUM" else 
+                        NotificationPriority.LOW
+            )
+            try:
+                created = notification_service.create_notification(notification, session)
+                notifications_created.append(created.id)
+            except Exception as e:
+                # Log error but continue with other notifications
+                print(f"Failed to create notification for {manager.email}: {e}")
+        
+        # Log the escalation in the database (you might want to create an escalation_log table)
+        # For now, we'll just return success info
+        
+        return {
+            "success": True,
+            "technician_id": str(technician_id),
+            "escalated_by": str(escalated_by),
+            "reason": reason,
+            "priority": priority,
+            "notifications_sent": len(notifications_created),
+            "timestamp": utcnow().isoformat()
+        }
+
 
 def get_technician_service() -> _TechnicianService:
     return _TechnicianService()

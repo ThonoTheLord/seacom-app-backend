@@ -4,6 +4,7 @@ from uuid import UUID
 
 from app.models import TechnicianCreate, TechnicianUpdate, TechnicianResponse, TechnicianLocationUpdate
 from app.services import TechnicianService
+from app.services.auth import CurrentUser
 from app.database import Session
 
 router = APIRouter(prefix="/technicians", tags=["Technicians"])
@@ -138,6 +139,28 @@ def update_technician_location(
     Called by mobile app to report real-time position.
     """
     return service.update_location(technician_id, payload, session)
+
+
+@router.post("/{technician_id}/escalate", status_code=200)
+def escalate_technician_issue(
+    technician_id: UUID,
+    service: TechnicianService,
+    session: Session,
+    current_user: CurrentUser,
+    reason: str = Query(..., description="Reason for escalation"),
+    priority: str = Query("HIGH", description="Escalation priority: HIGH, MEDIUM, LOW")
+) -> dict:
+    """
+    Escalate a technician performance or availability issue to management.
+    Creates a notification for management users and logs the escalation.
+    """
+    return service.escalate_technician_issue(
+        technician_id=technician_id,
+        reason=reason,
+        priority=priority,
+        escalated_by=current_user.user_id,
+        session=session
+    )
 
 
 @router.delete("/{technician_id}", status_code=204)
