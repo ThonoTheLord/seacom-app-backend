@@ -6,9 +6,6 @@ from app.core.settings import app_settings
 from app.services.presence import PresenceService
 
 
-pytestmark = pytest.mark.usefixtures("db_session")
-
-
 @pytest.mark.skipif(not app_settings.REDIS_URL, reason="REDIS_URL not configured")
 def test_redis_presence_cycle():
     # This test only runs when REDIS_URL is configured in the environment (integration test)

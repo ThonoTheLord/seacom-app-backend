@@ -14,7 +14,7 @@ class AppSettings(BaseSettings):
 
     # Supabase Storage
     SUPABASE_URL: str = ""
-    SUPABASE_SERVICE_KEY: str = ""
+    SUPABASE_SERVICE_KEY: str = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2ZG1icGtuY2t1ZXhvY29vYnZ3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDYxOTA2NSwiZXhwIjoyMDg2MTk1MDY1fQ.pjhEQvc4LwbPdQBjT4gmcciYfd7NJAeM5Aa8kjWTt7g"
     SUPABASE_STORAGE_BUCKET: str = "attachments"
 
     # Security

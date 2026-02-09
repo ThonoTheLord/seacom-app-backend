@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from typing import List
+from typing import List, Optional
 from app.models import Webhook
 from app.services.webhook import WebhookService
 
