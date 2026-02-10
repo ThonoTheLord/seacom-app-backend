@@ -10,6 +10,7 @@ from strawberry.fastapi import GraphQLRouter
 from app.database import Database
 from app.core import app_settings
 from app.core.rate_limiter import limiter
+from app.core.debug_middleware import DebugMiddleware
 from app.api import router
 from app.graphql.schema import schema
 
@@ -97,6 +98,10 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
+
+# Add debug middleware for request/response logging and performance timing
+app.add_middleware(DebugMiddleware)
+
 app.include_router(router)
 
 # GraphQL router

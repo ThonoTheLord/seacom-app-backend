@@ -2,10 +2,11 @@ from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
 from typing import Annotated
 from sqlmodel import select, Session
+from uuid import UUID
 
 from app.core import SecurityUtils
-from app.models import User, Token, TokenData, LoginForm
-from app.exceptions.http import UnauthorizedException, NotFoundException, ForbiddenException
+from app.models import User, Token, TokenData, LoginForm, PasswordChange
+from app.exceptions.http import UnauthorizedException, NotFoundException, ForbiddenException, BadRequestException
 from app.utils.enums import UserRole
 
 oauth = OAuth2PasswordBearer("/api/v1/auth/login")
@@ -28,6 +29,35 @@ class _AuthService:
             raise UnauthorizedException("Invalid email or password")
         
         return SecurityUtils.create_token(user.id, user.role, user.name, user.surname)
+
+    def change_password(self, user_id: UUID, payload: PasswordChange, session: Session) -> dict:
+        """Change the password for a user."""
+        # Validate passwords match
+        if payload.new_password != payload.confirm_password:
+            raise BadRequestException("New password and confirmation do not match")
+        
+        # Get user from database
+        user = session.exec(
+            select(User).where(User.id == user_id, User.deleted_at.is_(None))
+        ).first()
+        
+        if not user:
+            raise NotFoundException("User not found")
+        
+        # Verify current password
+        if not SecurityUtils.check_password(payload.current_password, user.password_hash):
+            raise BadRequestException("Current password is incorrect")
+        
+        # Check new password is different
+        if payload.current_password == payload.new_password:
+            raise BadRequestException("New password must be different from current password")
+        
+        # Update password
+        user.password_hash = SecurityUtils.hash_password(payload.new_password)
+        session.add(user)
+        session.commit()
+        
+        return {"message": "Password changed successfully"}
 
 def get_auth_service() -> _AuthService:
     """"""
