@@ -82,7 +82,6 @@ app: FastAPI = FastAPI(
 )
 
 app.state.limiter = limiter
-app.add_middleware(SlowAPIMiddleware)
 
 @app.exception_handler(RateLimitExceeded)
 async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
@@ -91,6 +90,10 @@ async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
         content={"detail": "Too many requests. Please try again later."}
     )
 
+# Middleware order: last added = outermost (processes request first)
+# CORS must be outermost so preflight OPTIONS requests are handled before anything else
+app.add_middleware(DebugMiddleware)
+app.add_middleware(SlowAPIMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=app_settings.allowed_origins,
@@ -98,9 +101,6 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
-
-# Add debug middleware for request/response logging and performance timing
-app.add_middleware(DebugMiddleware)
 
 app.include_router(router)
 
