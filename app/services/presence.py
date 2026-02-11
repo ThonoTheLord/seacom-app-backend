@@ -34,7 +34,12 @@ def _get_redis():
     try:
         import redis
         LOG.info(f"Connecting to Redis at {url.split('@')[-1]}...")
-        _redis_client = redis.Redis.from_url(url, decode_responses=True)
+        _redis_client = redis.Redis.from_url(
+            url,
+            decode_responses=True,
+            socket_connect_timeout=2,
+            socket_timeout=2,
+        )
         _redis_client.ping()
         LOG.info("Redis connection successful")
         return _redis_client
@@ -302,19 +307,28 @@ class PresenceService:
     @classmethod
     def upsert_session(cls, user_id, role: str, session_id: str, expires_at: Optional[datetime] = None) -> dict:
         if cls._use_redis():
-            return cls._redis_upsert(user_id, role, session_id, expires_at)
+            try:
+                return cls._redis_upsert(user_id, role, session_id, expires_at)
+            except Exception as e:
+                LOG.exception("Redis presence upsert failed, falling back to DB: {}", e)
         return cls._db_upsert(user_id, role, session_id, expires_at)
 
     @classmethod
     def heartbeat(cls, user_id, role: str, session_id: Optional[str] = None) -> dict:
         if cls._use_redis():
-            return cls._redis_heartbeat(user_id, role, session_id)
+            try:
+                return cls._redis_heartbeat(user_id, role, session_id)
+            except Exception as e:
+                LOG.exception("Redis presence heartbeat failed, falling back to DB: {}", e)
         return cls._db_heartbeat(user_id, role, session_id)
 
     @classmethod
     def deactivate_session(cls, user_id=None, session_id: Optional[str] = None) -> None:
         if cls._use_redis():
-            return cls._redis_deactivate(user_id=user_id, session_id=session_id)
+            try:
+                return cls._redis_deactivate(user_id=user_id, session_id=session_id)
+            except Exception as e:
+                LOG.exception("Redis presence deactivate failed, falling back to DB: {}", e)
         return cls._db_deactivate(user_id=user_id, session_id=session_id)
 
     @classmethod
