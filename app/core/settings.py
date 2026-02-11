@@ -29,6 +29,14 @@ class AppSettings(BaseSettings):
     REDIS_URL: str | None = Field(default=None, description="Optional Redis URL for presence/pubsub (e.g. redis://host:6379/0)")
     PRESENCE_REDIS_TTL_SECONDS: int = Field(default=300, description="How long (s) a heartbeat is considered valid in Redis")
     PRESENCE_PUBSUB_CHANNEL: str = Field(default="presence_events", description="Redis pubsub channel for presence events")
+    PRESENCE_REDIS_CONNECT_TIMEOUT_SECONDS: int = Field(
+        default=5,
+        description="Redis connect timeout (seconds) for presence operations",
+    )
+    PRESENCE_REDIS_SOCKET_TIMEOUT_SECONDS: int = Field(
+        default=5,
+        description="Redis command socket timeout (seconds) for presence operations",
+    )
 
     @field_validator("JWT_SECRET_KEY", mode="before")
     @classmethod

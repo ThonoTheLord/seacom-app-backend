@@ -37,8 +37,10 @@ def _get_redis():
         _redis_client = redis.Redis.from_url(
             url,
             decode_responses=True,
-            socket_connect_timeout=2,
-            socket_timeout=2,
+            socket_connect_timeout=app_settings.PRESENCE_REDIS_CONNECT_TIMEOUT_SECONDS,
+            socket_timeout=app_settings.PRESENCE_REDIS_SOCKET_TIMEOUT_SECONDS,
+            retry_on_timeout=True,
+            health_check_interval=30,
         )
         _redis_client.ping()
         LOG.info("Redis connection successful")
