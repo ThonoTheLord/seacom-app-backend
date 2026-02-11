@@ -5,7 +5,7 @@ from sqlmodel import Session, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import and_
 
-from app.utils.enums import IncidentStatus, NotificationPriority, UserRole
+from app.utils.enums import IncidentStatus, UserRole
 from app.utils.funcs import utcnow
 from app.models import Incident, IncidentCreate, IncidentUpdate, IncidentResponse, Site, Technician, User, Client
 from app.exceptions.http import (
@@ -62,16 +62,17 @@ class _IncidentService:
             session.refresh(incident)
             
             # Create notifications
-            from app.services.notification import _NotificationService
+            from app.services.notification import _NotificationService, NotificationTemplates
             notification_service = _NotificationService()
             
             # Notify the assigned technician about the incident
-            notification_service.create_notification_for_user(
+            notification_service.create_notification_from_template(
                 user_id=technician.user_id,
-                title=f"Incident Assigned: {site.name}",
-                message=f"You have been assigned to handle an incident at {site.name}. {data.description[:80]}...",
-                priority=NotificationPriority.CRITICAL,
-                session=session
+                template=NotificationTemplates.incident_assigned_to_technician(
+                    site_name=site.name,
+                    description=data.description,
+                ),
+                session=session,
             )
             
             # Notify all NOC operators about new incident
@@ -84,14 +85,15 @@ class _IncidentService:
                 )
             ).all()
             
-            for noc_user in noc_users:
-                notification_service.create_notification_for_user(
-                    user_id=noc_user.id,
-                    title=f"New Incident Created",
-                    message=f"Incident created at {site.name}, assigned to {technician.user.name}. {data.description[:60]}...",
-                    priority=NotificationPriority.HIGH,
-                    session=session
-                )
+            notification_service.create_notifications_from_template(
+                user_ids=(noc_user.id for noc_user in noc_users),
+                template=NotificationTemplates.incident_created_for_noc(
+                    site_name=site.name,
+                    technician_name=f"{technician.user.name} {technician.user.surname}",
+                    description=data.description,
+                ),
+                session=session,
+            )
             
             return self.incident_to_response(incident)
         except IntegrityError as e:
@@ -168,7 +170,7 @@ class _IncidentService:
             session.refresh(incident)
             
             # Notify NOC operators that incident work has started
-            from app.services.notification import _NotificationService
+            from app.services.notification import _NotificationService, NotificationTemplates
             notification_service = _NotificationService()
             
             noc_users = session.exec(
@@ -183,14 +185,11 @@ class _IncidentService:
             site_name = incident.site.name if incident.site else "Unknown Site"
             tech_name = f"{incident.technician.user.name} {incident.technician.user.surname}" if incident.technician else "Unknown"
             
-            for noc_user in noc_users:
-                notification_service.create_notification_for_user(
-                    user_id=noc_user.id,
-                    title=f"Incident In Progress: {site_name}",
-                    message=f"{tech_name} has started working on the incident at {site_name}",
-                    priority=NotificationPriority.NORMAL,
-                    session=session
-                )
+            notification_service.create_notifications_from_template(
+                user_ids=(noc_user.id for noc_user in noc_users),
+                template=NotificationTemplates.incident_in_progress(tech_name, site_name),
+                session=session,
+            )
             
             return self.incident_to_response(incident)
         except Exception as e:
@@ -206,7 +205,7 @@ class _IncidentService:
             session.refresh(incident)
             
             # Notify NOC operators that incident is resolved
-            from app.services.notification import _NotificationService
+            from app.services.notification import _NotificationService, NotificationTemplates
             notification_service = _NotificationService()
             
             noc_users = session.exec(
@@ -221,14 +220,11 @@ class _IncidentService:
             site_name = incident.site.name if incident.site else "Unknown Site"
             tech_name = f"{incident.technician.user.name} {incident.technician.user.surname}" if incident.technician else "Unknown"
             
-            for noc_user in noc_users:
-                notification_service.create_notification_for_user(
-                    user_id=noc_user.id,
-                    title=f"Incident Resolved: {site_name}",
-                    message=f"{tech_name} has resolved the incident at {site_name}",
-                    priority=NotificationPriority.HIGH,
-                    session=session
-                )
+            notification_service.create_notifications_from_template(
+                user_ids=(noc_user.id for noc_user in noc_users),
+                template=NotificationTemplates.incident_resolved(tech_name, site_name),
+                session=session,
+            )
             
             return self.incident_to_response(incident)
         except Exception as e:

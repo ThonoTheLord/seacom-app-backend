@@ -3,7 +3,7 @@ from typing import List
 from uuid import UUID
 
 from app.models import TaskCreate, TaskUpdate, TaskResponse
-from app.services import TaskService
+from app.services import TaskService, CurrentUser
 from app.database import Session
 from app.utils.enums import TaskStatus, TaskType
 
@@ -14,7 +14,8 @@ router = APIRouter(prefix="/tasks", tags=["Tasks"])
 def create_task(
     payload: TaskCreate,
     service: TaskService,
-    session: Session
+    session: Session,
+    current_user: CurrentUser,
 ) -> TaskResponse:
     """"""
     return service.create_task(payload, session)
@@ -24,6 +25,7 @@ def create_task(
 def read_tasks(
     service: TaskService,
     session: Session,
+    current_user: CurrentUser,
     technician_id: UUID | None = Query(None),
     task_type: TaskType | None = Query(None),
     status: TaskStatus | None = Query(None),
@@ -38,7 +40,8 @@ def read_tasks(
 def read_task(
     task_id: UUID,
     service: TaskService,
-    session: Session
+    session: Session,
+    current_user: CurrentUser,
 ) -> TaskResponse:
     """"""
     return service.read_task(task_id, session)
@@ -50,6 +53,7 @@ def update_task(
     payload: TaskUpdate,
     service: TaskService,
     session: Session,
+    current_user: CurrentUser,
 ) -> TaskResponse:
     """"""
     return service.update_task(task_id, payload, session)
@@ -59,7 +63,8 @@ def update_task(
 def delete_task(
     task_id: UUID,
     service: TaskService,
-    session: Session
+    session: Session,
+    current_user: CurrentUser,
 ) -> None:
     """"""
     service.delete_task(task_id, session)
@@ -69,7 +74,8 @@ def delete_task(
 def start_task(
     task_id: UUID,
     service: TaskService,
-    session: Session
+    session: Session,
+    current_user: CurrentUser,
 ) -> TaskResponse:
     """"""
     return service.start_task(task_id, session)
@@ -79,7 +85,8 @@ def start_task(
 def complete_task(
     task_id: UUID,
     service: TaskService,
-    session: Session
+    session: Session,
+    current_user: CurrentUser,
 ) -> TaskResponse:
     """"""
     return service.complete_task(task_id, session)
@@ -89,7 +96,8 @@ def complete_task(
 def fail_task(
     task_id: UUID,
     service: TaskService,
-    session: Session
+    session: Session,
+    current_user: CurrentUser,
 ) -> TaskResponse:
     """"""
     return service.fail_task(task_id, session)

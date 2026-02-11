@@ -4,8 +4,10 @@ from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.exceptions import RequestValidationError
 from contextlib import asynccontextmanager
 from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 import asyncio
 from strawberry.fastapi import GraphQLRouter
+from loguru import logger as LOG
 
 from app.database import Database
 from app.core import app_settings
@@ -44,24 +46,23 @@ async def sla_check_background_task():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("DEBUG: Starting lifespan")
+    LOG.info("Starting application lifespan")
     from app.core import app_settings
     try:
         Database.connect(app_settings.database_url)
-        print("DEBUG: Database connected")
+        LOG.info("Database connected")
     except Exception as e:
-        print(f"DEBUG: Database connect failed: {e}")
+        LOG.exception(f"Database connection failed: {e}")
         raise
     # Database.init()
-    print("DEBUG: Database init skipped")
+    LOG.debug("Database init skipped")
     
     # Start SLA check background task
     # sla_task = asyncio.create_task(sla_check_background_task())
     
-    print("DEBUG: Yielding lifespan")
     yield
     
-    print("DEBUG: Lifespan exiting")
+    LOG.info("Shutting down application lifespan")
     # Cancel background task on shutdown
     # sla_task.cancel()
     # try:
@@ -70,7 +71,7 @@ async def lifespan(app: FastAPI):
     #     pass
     
     Database.disconnect()
-    print("DEBUG: Database disconnected")
+    LOG.info("Database disconnected")
 
 
 app: FastAPI = FastAPI(
@@ -80,16 +81,15 @@ app: FastAPI = FastAPI(
     lifespan=lifespan
 )
 
-# Add state for limiter
-# app.state.limiter = limiter
+app.state.limiter = limiter
+app.add_middleware(SlowAPIMiddleware)
 
-# Add rate limit exception handler
-# @app.exception_handler(RateLimitExceeded)
-# async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
-#     return JSONResponse(
-#         status_code=429,
-#         content={"detail": "Too many requests. Please try again later."}
-#     )
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "Too many requests. Please try again later."}
+    )
 
 app.add_middleware(
     CORSMiddleware,
@@ -117,9 +117,7 @@ def root() -> RedirectResponse:
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    from loguru import logger as LOG
     LOG.debug("Validation error: {}", exc.errors())
-    LOG.debug("Request body: {}", exc.body)
     return JSONResponse(
         status_code=422,
         content={"detail": exc.errors()}

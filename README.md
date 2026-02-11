@@ -48,3 +48,30 @@ An application to allow technicians to submit their reports and noc oporators to
 ```bash
 uv run uvicorn app.main:app --reload
 ```
+
+## 4. Report Stability Migration (Task/Report Reliability)
+
+Apply these SQL scripts in order on staging, then production:
+
+1. `scripts/fix_trigger.sql`
+2. `scripts/0011_enforce_single_active_report_per_task.sql`
+
+Purpose:
+- `fix_trigger.sql` removes/fixes broken `audit_report_changes` trigger paths that can block report updates.
+- `0011_enforce_single_active_report_per_task.sql` deduplicates active reports and enforces one active report per task.
+
+Verification queries:
+
+```sql
+-- Check trigger status on reports table
+SELECT tgname
+FROM pg_trigger
+WHERE tgrelid = 'reports'::regclass
+  AND NOT tgisinternal;
+
+-- Check unique partial index exists
+SELECT indexname, indexdef
+FROM pg_indexes
+WHERE tablename = 'reports'
+  AND indexname = 'ux_reports_task_id_active';
+```

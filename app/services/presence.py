@@ -4,12 +4,13 @@ When `app_settings.PRESENCE_BACKEND == 'redis'` and `REDIS_URL` is set, presence
 uses Redis sorted-sets + hashes for low-latency heartbeats and pub/sub for events.
 Otherwise the code falls back to the persisted SQLModel implementation.
 """
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 import json
 import time
 
 from sqlmodel import select
+from sqlalchemy import and_
 
 from app.database.database import Database
 from app.models.user_session import UserSession
@@ -48,7 +49,11 @@ class PresenceService:
 
     @classmethod
     def _use_redis(cls) -> bool:
-        return app_settings.PRESENCE_BACKEND.lower() == "redis" and bool(app_settings.REDIS_URL)
+        return (
+            app_settings.PRESENCE_BACKEND.lower() == "redis"
+            and bool(app_settings.REDIS_URL)
+            and _get_redis() is not None
+        )
 
     # -------------------- Redis-backed implementations --------------------
     @classmethod
@@ -250,10 +255,12 @@ class PresenceService:
     def _db_list_active_noc_operators(cls, cutoff_minutes: int = 10) -> List[dict]:
         cutoff = datetime.utcnow() - timedelta(minutes=cutoff_minutes)
         with Database.session() as s:
-            # Fetch active sessions for NOC users, then filter by cutoff in Python
             q = select(UserSession, User).join(User, User.id == UserSession.user_id).where(
-                User.role == UserRole.NOC,
-                UserSession.is_active == True,
+                and_(
+                    User.role == UserRole.NOC,
+                    UserSession.is_active == True,
+                    UserSession.last_seen.is_not(None),
+                )
             )
             rows = s.exec(q).all()
             results = []
@@ -264,9 +271,15 @@ class PresenceService:
                     try:
                         from datetime import datetime as _dt
 
-                        last_seen_val = _dt.fromisoformat(last_seen_val)
+                        normalized_raw = last_seen_val.strip()
+                        if normalized_raw.endswith("Z"):
+                            normalized_raw = f"{normalized_raw[:-1]}+00:00"
+                        last_seen_val = _dt.fromisoformat(normalized_raw)
                     except Exception:
                         last_seen_val = None
+                if isinstance(last_seen_val, datetime) and last_seen_val.tzinfo is not None:
+                    # Compare as naive UTC timestamps for consistent cutoff behavior.
+                    last_seen_val = last_seen_val.astimezone(timezone.utc).replace(tzinfo=None)
 
                 if not last_seen_val or last_seen_val < cutoff:
                     continue

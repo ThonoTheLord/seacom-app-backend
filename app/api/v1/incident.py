@@ -3,7 +3,7 @@ from typing import List
 from uuid import UUID
 
 from app.models import IncidentCreate, IncidentUpdate, IncidentResponse
-from app.services import IncidentService
+from app.services import IncidentService, CurrentUser
 from app.database import Session
 from app.utils.enums import IncidentStatus
 
@@ -14,7 +14,8 @@ router = APIRouter(prefix="/incidents", tags=["Incidents"])
 def create_incident(
     payload: IncidentCreate,
     service: IncidentService,
-    session: Session
+    session: Session,
+    current_user: CurrentUser,
 ) -> IncidentResponse:
     """"""
     return service.create_incident(payload, session)
@@ -24,6 +25,7 @@ def create_incident(
 def read_incidents(
     service: IncidentService,
     session: Session,
+    current_user: CurrentUser,
     technician_id: UUID | None = Query(None),
     status: IncidentStatus | None = Query(None),
     client_id: UUID | None = Query(None, description="Filter by client ID"),
@@ -38,7 +40,8 @@ def read_incidents(
 def read_incident(
     incident_id: UUID,
     service: IncidentService,
-    session: Session
+    session: Session,
+    current_user: CurrentUser,
 ) -> IncidentResponse:
     """"""
     return service.read_incident(incident_id, session)
@@ -50,6 +53,7 @@ def update_incident(
     payload: IncidentUpdate,
     service: IncidentService,
     session: Session,
+    current_user: CurrentUser,
 ) -> IncidentResponse:
     """"""
     return service.update_incident(incident_id, payload, session)
@@ -59,7 +63,8 @@ def update_incident(
 def delete_incident(
     incident_id: UUID,
     service: IncidentService,
-    session: Session
+    session: Session,
+    current_user: CurrentUser,
 ) -> None:
     """"""
     service.delete_incident(incident_id, session)
@@ -69,7 +74,8 @@ def delete_incident(
 def start_incident(
     incident_id: UUID,
     service: IncidentService,
-    session: Session
+    session: Session,
+    current_user: CurrentUser,
 ) -> IncidentResponse:
     """"""
     return service.start_incident(incident_id, session)
@@ -79,7 +85,8 @@ def start_incident(
 def resolve_incident(
     incident_id: UUID,
     service: IncidentService,
-    session: Session
+    session: Session,
+    current_user: CurrentUser,
 ) -> IncidentResponse:
     """"""
     return service.resolve_incident(incident_id, session)
@@ -87,7 +94,8 @@ def resolve_incident(
 
 @router.post("/check-sla", status_code=200)
 def check_sla_breaches_endpoint(
-    session: Session
+    session: Session,
+    current_user: CurrentUser,
 ) -> dict:
     """
     Check for incidents approaching or breaching SLA and send notifications.
@@ -112,7 +120,8 @@ def check_sla_breaches_endpoint(
 def get_incident_sla_status(
     incident_id: UUID,
     service: IncidentService,
-    session: Session
+    session: Session,
+    current_user: CurrentUser,
 ) -> dict:
     """Get the SLA status for a specific incident."""
     from app.services.sla_checker import get_sla_status_for_incident

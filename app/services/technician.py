@@ -6,6 +6,7 @@ from sqlmodel import Session, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import text
 from geoalchemy2.functions import ST_DWithin, ST_Distance, ST_SetSRID, ST_MakePoint
+from loguru import logger as LOG
 
 from app.models import Technician, TechnicianCreate, TechnicianUpdate, TechnicianResponse, TechnicianLocationUpdate, User, Site
 from app.exceptions.http import (
@@ -275,8 +276,7 @@ class _TechnicianService:
         session: Session
     ) -> dict:
         """Escalate a technician issue to management."""
-        from app.services.notification import NotificationService, NotificationPriority
-        from app.models import NotificationCreate
+        from app.services.notification import _NotificationService, NotificationTemplates
         
         # Get technician details
         statement = select(Technician).where(Technician.id == technician_id, Technician.deleted_at.is_(None))
@@ -295,22 +295,24 @@ class _TechnicianService:
         notifications_created = []
         
         # Create notifications for all management users
-        notification_service = NotificationService()
+        notification_service = _NotificationService()
+        template = NotificationTemplates.technician_escalation(
+            technician_name=f"{technician.user.name} {technician.user.surname}",
+            priority=priority,
+            reason=reason,
+        )
         for manager in management_users:
-            notification = NotificationCreate(
-                user_id=manager.id,
-                title=f"Technician Escalation: {technician.user.name} {technician.user.surname}",
-                message=f"Priority {priority} escalation: {reason}",
-                priority=NotificationPriority.HIGH if priority == "HIGH" else 
-                        NotificationPriority.NORMAL if priority == "MEDIUM" else 
-                        NotificationPriority.LOW
-            )
             try:
-                created = notification_service.create_notification(notification, session)
-                notifications_created.append(created.id)
+                created = notification_service.create_notification_from_template(
+                    user_id=manager.id,
+                    template=template,
+                    session=session,
+                )
+                if created:
+                    notifications_created.append(created.id)
             except Exception as e:
                 # Log error but continue with other notifications
-                print(f"Failed to create notification for {manager.email}: {e}")
+                LOG.warning("Failed to create notification for {}: {}", manager.email, e)
         
         # Log the escalation in the database (you might want to create an escalation_log table)
         # For now, we'll just return success info

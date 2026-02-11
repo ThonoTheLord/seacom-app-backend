@@ -9,11 +9,12 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.database import Database
-from app.services.auth import CurrentUser
+from app.services.auth import ManagerOrAdminUser
 from app.models.user import User
 import os
 import shutil
 from datetime import datetime, timezone
+from loguru import logger as LOG
 
 try:
     import psutil
@@ -30,7 +31,7 @@ router = APIRouter(prefix="/dashboard", tags=["management-dashboard"])
 # ============================================================
 @router.get("/executive-sla-overview")
 def get_executive_sla_overview(
-    current_user: CurrentUser
+    current_user: ManagerOrAdminUser
 ) -> dict:
     """Get executive SLA overview metrics - high-level KPIs for C-suite"""
     try:
@@ -52,7 +53,8 @@ def get_executive_sla_overview(
                 }
             return row._mapping
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        LOG.exception("Management dashboard endpoint error: {}", e)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================
@@ -60,7 +62,7 @@ def get_executive_sla_overview(
 # ============================================================
 @router.get("/incident-sla-monitoring")
 def get_incident_sla_monitoring(
-    current_user: CurrentUser,
+    current_user: ManagerOrAdminUser,
     severity: Optional[str] = Query(None),
     region: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
@@ -100,13 +102,14 @@ def get_incident_sla_monitoring(
 
             return {"data": records, "total": total}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        LOG.exception("Management dashboard endpoint error: {}", e)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/incident-sla-monitoring/{incident_id}")
 def get_incident_sla_detail(
     incident_id: str,
-    current_user: CurrentUser
+    current_user: ManagerOrAdminUser
 ) -> dict:
     """Get detailed incident SLA record"""
     try:
@@ -122,7 +125,8 @@ def get_incident_sla_detail(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        LOG.exception("Management dashboard endpoint error: {}", e)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================
@@ -130,21 +134,17 @@ def get_incident_sla_detail(
 # ============================================================
 @router.get("/noc-online")
 def get_noc_online(
-    current_user: CurrentUser,
+    current_user: ManagerOrAdminUser,
     cutoff_minutes: int = Query(10, ge=1, le=60)
 ) -> dict:
     """Return list of active NOC operator sessions (restricted to Manager/Admin)."""
     from app.services.presence import PresenceService
-    from app.utils.enums import UserRole
-
-    if current_user.role not in (UserRole.MANAGER, UserRole.ADMIN):
-        raise HTTPException(status_code=403, detail="Insufficient permissions")
-
     try:
         data = PresenceService.list_active_noc_operators(cutoff_minutes=cutoff_minutes)
         return {"data": data, "total": len(data)}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        LOG.exception("Management dashboard endpoint error: {}", e)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================
@@ -152,7 +152,7 @@ def get_noc_online(
 # ============================================================
 @router.get("/task-performance")
 def get_task_performance(
-    current_user: CurrentUser,
+    current_user: ManagerOrAdminUser,
     task_type: Optional[str] = Query(None),
     region: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
@@ -192,13 +192,14 @@ def get_task_performance(
 
             return {"data": records, "total": total}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        LOG.exception("Management dashboard endpoint error: {}", e)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/task-performance/{task_id}")
 def get_task_performance_detail(
     task_id: str,
-    current_user: CurrentUser
+    current_user: ManagerOrAdminUser
 ) -> dict:
     """Get detailed task performance record"""
     try:
@@ -214,7 +215,8 @@ def get_task_performance_detail(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        LOG.exception("Management dashboard endpoint error: {}", e)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================
@@ -222,7 +224,7 @@ def get_task_performance_detail(
 # ============================================================
 @router.get("/site-risk-reliability")
 def get_site_risk_reliability(
-    current_user: CurrentUser,
+    current_user: ManagerOrAdminUser,
     region: Optional[str] = Query(None),
     risk_level: Optional[str] = Query(None),
     offset: int = Query(0, ge=0),
@@ -257,13 +259,14 @@ def get_site_risk_reliability(
 
             return {"data": records, "total": total}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        LOG.exception("Management dashboard endpoint error: {}", e)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/site-risk-reliability/{site_id}")
 def get_site_risk_detail(
     site_id: str,
-    current_user: CurrentUser
+    current_user: ManagerOrAdminUser
 ) -> dict:
     """Get detailed site risk and reliability record"""
     try:
@@ -279,7 +282,8 @@ def get_site_risk_detail(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        LOG.exception("Management dashboard endpoint error: {}", e)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================
@@ -287,7 +291,7 @@ def get_site_risk_detail(
 # ============================================================
 @router.get("/technician-performance")
 def get_technician_performance(
-    current_user: CurrentUser,
+    current_user: ManagerOrAdminUser,
     workload_level: Optional[str] = Query(None),
     performance_level: Optional[str] = Query(None),
     offset: int = Query(0, ge=0),
@@ -322,13 +326,14 @@ def get_technician_performance(
 
             return {"data": records, "total": total}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        LOG.exception("Management dashboard endpoint error: {}", e)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/technician-performance/{technician_id}")
 def get_technician_performance_detail(
     technician_id: str,
-    current_user: CurrentUser
+    current_user: ManagerOrAdminUser
 ) -> dict:
     """Get detailed technician performance record"""
     try:
@@ -344,7 +349,8 @@ def get_technician_performance_detail(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        LOG.exception("Management dashboard endpoint error: {}", e)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================
@@ -352,7 +358,7 @@ def get_technician_performance_detail(
 # ============================================================
 @router.get("/access-request-sla")
 def get_access_request_sla(
-    current_user: CurrentUser,
+    current_user: ManagerOrAdminUser,
     region: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
     offset: int = Query(0, ge=0),
@@ -387,7 +393,8 @@ def get_access_request_sla(
 
             return {"data": records, "total": total}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        LOG.exception("Management dashboard endpoint error: {}", e)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================
@@ -395,7 +402,7 @@ def get_access_request_sla(
 # ============================================================
 @router.get("/regional-sla-analytics")
 def get_regional_sla_analytics(
-    current_user: CurrentUser
+    current_user: ManagerOrAdminUser
 ) -> dict:
     """Get regional SLA analytics and performance comparison"""
     try:
@@ -406,7 +413,8 @@ def get_regional_sla_analytics(
             records = [dict(row._mapping) for row in result]
             return {"data": records, "total": len(records)}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        LOG.exception("Management dashboard endpoint error: {}", e)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================
@@ -414,7 +422,7 @@ def get_regional_sla_analytics(
 # ============================================================
 @router.get("/sla-trend-analysis")
 def get_sla_trend_analysis(
-    current_user: CurrentUser,
+    current_user: ManagerOrAdminUser,
     metric_type: Optional[str] = Query(None),
     offset: int = Query(0, ge=0),
     limit: int = Query(90, ge=1, le=500)
@@ -444,7 +452,8 @@ def get_sla_trend_analysis(
 
             return {"data": records, "total": total}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        LOG.exception("Management dashboard endpoint error: {}", e)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================
@@ -452,7 +461,7 @@ def get_sla_trend_analysis(
 # ============================================================
 @router.get("/sla-alerts")
 def get_sla_alerts(
-    current_user: CurrentUser,
+    current_user: ManagerOrAdminUser,
     alert_level: Optional[str] = Query(None),
     item_type: Optional[str] = Query(None),
     offset: int = Query(0, ge=0),
@@ -487,7 +496,8 @@ def get_sla_alerts(
 
             return {"data": records, "total": total}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        LOG.exception("Management dashboard endpoint error: {}", e)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================
@@ -495,7 +505,7 @@ def get_sla_alerts(
 # ============================================================
 @router.get("/health")
 def dashboard_health(
-    current_user: CurrentUser
+    current_user: ManagerOrAdminUser
 ) -> dict:
     """Check if dashboard views are healthy and responsive"""
     try:
@@ -546,5 +556,9 @@ def dashboard_health(
     except Exception as e:
         raise HTTPException(
             status_code=503,
-            detail=f"Dashboard health check failed: {str(e)}"
+            detail="Dashboard health check failed"
         )
+
+
+
+

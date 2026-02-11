@@ -9,17 +9,17 @@ class AppSettings(BaseSettings):
     DB_HOST: str = ""
     DB_USER: str = ""
     DB_PASSWORD: str = ""
-    DB_PORT: int = 0
+    DB_PORT: int = 5432
     DB_NAME: str = ""
 
     # Supabase Storage
     SUPABASE_URL: str = ""
-    SUPABASE_SERVICE_KEY: str = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2ZG1icGtuY2t1ZXhvY29vYnZ3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDYxOTA2NSwiZXhwIjoyMDg2MTk1MDY1fQ.pjhEQvc4LwbPdQBjT4gmcciYfd7NJAeM5Aa8kjWTt7g"
+    SUPABASE_SERVICE_KEY: str = ""
     SUPABASE_STORAGE_BUCKET: str = "attachments"
 
     # Security
-    JWT_TOKEN_EXPIRE_MINUTES: int = 0
-    JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 0
+    JWT_TOKEN_EXPIRE_MINUTES: int = 60
+    JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     JWT_SECRET_KEY: str = Field(..., min_length=32)
     JWT_ALGORITHM: str = "HS256"
     ALLOWED_ORIGINS: str = Field(default="http://localhost:3000,http://localhost:5173")
