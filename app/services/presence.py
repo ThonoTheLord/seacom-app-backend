@@ -17,6 +17,7 @@ from app.models.user_session import UserSession
 from app.models.user import User
 from app.utils.enums import UserRole
 from app.core.settings import app_settings
+from loguru import logger as LOG
 
 
 # lazy import to keep redis optional
@@ -28,14 +29,17 @@ def _get_redis():
         return _redis_client
     url = app_settings.REDIS_URL
     if not url:
+        LOG.warning("REDIS_URL is not set, falling back to DB presence")
         return None
     try:
         import redis
+        LOG.info(f"Connecting to Redis at {url.split('@')[-1]}...")
         _redis_client = redis.Redis.from_url(url, decode_responses=True)
-        # smoke check (non-fatal)
         _redis_client.ping()
+        LOG.info("Redis connection successful")
         return _redis_client
-    except Exception:
+    except Exception as e:
+        LOG.error(f"Redis connection failed: {e}")
         _redis_client = None
         return None
 
