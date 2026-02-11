@@ -22,11 +22,15 @@ from loguru import logger as LOG
 
 # lazy import to keep redis optional
 _redis_client = None
+_redis_retry_after_ts = 0.0
 
 def _get_redis():
-    global _redis_client
+    global _redis_client, _redis_retry_after_ts
     if _redis_client:
         return _redis_client
+    now_ts = time.time()
+    if now_ts < _redis_retry_after_ts:
+        return None
     url = app_settings.REDIS_URL
     if not url:
         LOG.warning("REDIS_URL is not set, falling back to DB presence")
@@ -57,6 +61,7 @@ def _get_redis():
         except Exception as e:
             LOG.error(f"Redis connection failed: {e}")
             _redis_client = None
+            _redis_retry_after_ts = time.time() + app_settings.PRESENCE_REDIS_RETRY_COOLDOWN_SECONDS
 
     return None
 
@@ -322,7 +327,7 @@ class PresenceService:
             try:
                 return cls._redis_upsert(user_id, role, session_id, expires_at)
             except Exception as e:
-                LOG.exception("Redis presence upsert failed, falling back to DB: {}", e)
+                LOG.warning("Redis presence upsert failed, falling back to DB: {}", e)
         return cls._db_upsert(user_id, role, session_id, expires_at)
 
     @classmethod
@@ -331,7 +336,7 @@ class PresenceService:
             try:
                 return cls._redis_heartbeat(user_id, role, session_id)
             except Exception as e:
-                LOG.exception("Redis presence heartbeat failed, falling back to DB: {}", e)
+                LOG.warning("Redis presence heartbeat failed, falling back to DB: {}", e)
         return cls._db_heartbeat(user_id, role, session_id)
 
     @classmethod
@@ -340,7 +345,7 @@ class PresenceService:
             try:
                 return cls._redis_deactivate(user_id=user_id, session_id=session_id)
             except Exception as e:
-                LOG.exception("Redis presence deactivate failed, falling back to DB: {}", e)
+                LOG.warning("Redis presence deactivate failed, falling back to DB: {}", e)
         return cls._db_deactivate(user_id=user_id, session_id=session_id)
 
     @classmethod
@@ -349,9 +354,9 @@ class PresenceService:
             try:
                 return cls._redis_list_active_noc(cutoff_minutes=cutoff_minutes)
             except Exception as e:
-                LOG.exception("Redis presence list failed, falling back to DB: {}", e)
+                LOG.warning("Redis presence list failed, falling back to DB: {}", e)
         try:
             return cls._db_list_active_noc_operators(cutoff_minutes=cutoff_minutes)
         except Exception as e:
-            LOG.exception("DB presence list failed, returning empty list: {}", e)
+            LOG.warning("DB presence list failed, returning empty list: {}", e)
             return []

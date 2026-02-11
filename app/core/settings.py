@@ -37,6 +37,10 @@ class AppSettings(BaseSettings):
         default=5,
         description="Redis command socket timeout (seconds) for presence operations",
     )
+    PRESENCE_REDIS_RETRY_COOLDOWN_SECONDS: int = Field(
+        default=60,
+        description="Cooldown (seconds) before retrying Redis after a connection/read failure",
+    )
 
     @field_validator("JWT_SECRET_KEY", mode="before")
     @classmethod
