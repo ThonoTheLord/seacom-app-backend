@@ -31,24 +31,34 @@ def _get_redis():
     if not url:
         LOG.warning("REDIS_URL is not set, falling back to DB presence")
         return None
-    try:
-        import redis
-        LOG.info(f"Connecting to Redis at {url.split('@')[-1]}...")
-        _redis_client = redis.Redis.from_url(
-            url,
-            decode_responses=True,
-            socket_connect_timeout=app_settings.PRESENCE_REDIS_CONNECT_TIMEOUT_SECONDS,
-            socket_timeout=app_settings.PRESENCE_REDIS_SOCKET_TIMEOUT_SECONDS,
-            retry_on_timeout=True,
-            health_check_interval=30,
-        )
-        _redis_client.ping()
-        LOG.info("Redis connection successful")
-        return _redis_client
-    except Exception as e:
-        LOG.error(f"Redis connection failed: {e}")
-        _redis_client = None
-        return None
+    import redis
+    # Try configured URL first; if non-TLS Redis URL is configured, retry with TLS.
+    candidate_urls = [url]
+    if url.startswith("redis://"):
+        candidate_urls.append("rediss://" + url[len("redis://"):])
+
+    for idx, candidate in enumerate(candidate_urls):
+        try:
+            if idx == 0:
+                LOG.info(f"Connecting to Redis at {candidate.split('@')[-1]}...")
+            else:
+                LOG.info(f"Retrying Redis with TLS at {candidate.split('@')[-1]}...")
+            _redis_client = redis.Redis.from_url(
+                candidate,
+                decode_responses=True,
+                socket_connect_timeout=app_settings.PRESENCE_REDIS_CONNECT_TIMEOUT_SECONDS,
+                socket_timeout=app_settings.PRESENCE_REDIS_SOCKET_TIMEOUT_SECONDS,
+                retry_on_timeout=True,
+                health_check_interval=30,
+            )
+            _redis_client.ping()
+            LOG.info("Redis connection successful")
+            return _redis_client
+        except Exception as e:
+            LOG.error(f"Redis connection failed: {e}")
+            _redis_client = None
+
+    return None
 
 
 class PresenceService:
