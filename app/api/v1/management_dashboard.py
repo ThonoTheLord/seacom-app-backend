@@ -540,6 +540,31 @@ def dashboard_health(
                 cpu_percent = None
         # Fallbacks: leave as None when not available
 
+        # Presence backend diagnostics for production troubleshooting.
+        presence_info = {
+            "configured_backend": "unknown",
+            "active_backend": "unknown",
+            "redis_url_set": False,
+            "redis_connected": False,
+        }
+        try:
+            from app.core.settings import app_settings
+            from app.services.presence import PresenceService
+
+            configured_backend = app_settings.PRESENCE_BACKEND.lower()
+            redis_url_set = bool(app_settings.REDIS_URL)
+            redis_connected = bool(PresenceService._use_redis())
+            active_backend = "redis" if redis_connected else "db"
+
+            presence_info = {
+                "configured_backend": configured_backend,
+                "active_backend": active_backend,
+                "redis_url_set": redis_url_set,
+                "redis_connected": redis_connected,
+            }
+        except Exception as e:
+            LOG.exception("Failed to compute presence health info: {}", e)
+
         return {
             "status": "healthy",
             "timestamp": Database.get_current_timestamp(),
@@ -551,7 +576,8 @@ def dashboard_health(
                 "disk_total": disk_total,
                 "disk_used": disk_used,
                 "disk_percent": disk_percent,
-            }
+            },
+            "presence": presence_info,
         }
     except Exception as e:
         raise HTTPException(

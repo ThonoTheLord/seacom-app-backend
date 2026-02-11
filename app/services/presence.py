@@ -320,5 +320,12 @@ class PresenceService:
     @classmethod
     def list_active_noc_operators(cls, cutoff_minutes: int = 10) -> List[dict]:
         if cls._use_redis():
-            return cls._redis_list_active_noc(cutoff_minutes=cutoff_minutes)
-        return cls._db_list_active_noc_operators(cutoff_minutes=cutoff_minutes)
+            try:
+                return cls._redis_list_active_noc(cutoff_minutes=cutoff_minutes)
+            except Exception as e:
+                LOG.exception("Redis presence list failed, falling back to DB: {}", e)
+        try:
+            return cls._db_list_active_noc_operators(cutoff_minutes=cutoff_minutes)
+        except Exception as e:
+            LOG.exception("DB presence list failed, returning empty list: {}", e)
+            return []
