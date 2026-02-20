@@ -106,6 +106,16 @@ def get_stale_locations(
 
 # ==================== STANDARD CRUD ====================
 
+@router.get("/me", response_model=TechnicianResponse, status_code=200)
+def read_my_technician_profile(
+    service: TechnicianService,
+    session: Session,
+    current_user: CurrentUser,
+) -> TechnicianResponse:
+    """Get the technician profile for the currently authenticated user."""
+    return service.read_me(current_user.user_id, session)
+
+
 @router.get("/{technician_id}", response_model=TechnicianResponse, status_code=200)
 def read_technician(
     technician_id: UUID,

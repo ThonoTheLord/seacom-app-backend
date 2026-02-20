@@ -2,6 +2,7 @@
 import time
 import json
 import os
+import asyncio
 from typing import Callable, Any
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -76,12 +77,13 @@ class DebugMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """Process the request with debug logging and timing."""
-        # Skip debug processing for auth endpoints to prevent login delays
-        skip_paths = ["/api/v1/auth/", "/docs", "/openapi.json", "/redoc", "/health"]
+        # Skip debug processing for auth and settings endpoints to prevent delays
+        skip_paths = ["/api/v1/auth/", "/api/v1/settings/debug/", "/docs", "/openapi.json", "/redoc", "/health"]
         if any(request.url.path.startswith(path) for path in skip_paths):
             return await call_next(request)
-        
-        settings = self._get_debug_settings()
+
+        # Run the synchronous DB lookup in a thread pool to avoid blocking the event loop
+        settings = await asyncio.get_event_loop().run_in_executor(None, self._get_debug_settings)
         
         # Start timing
         start_time = time.perf_counter()

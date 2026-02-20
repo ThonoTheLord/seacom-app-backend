@@ -12,6 +12,7 @@ from .routine_check import RoutineCheck, RoutineCheckCreate, RoutineCheckRespons
 from .routine_issues import RoutineIssue, RoutineIssueCreate, RoutineIssueResponse, RoutineIssueUpdate
 from .routine_inspection import RoutineInspection, RoutineInspectionCreate, RoutineInspectionUpdate, RoutineInspectionResponse
 from .client import Client, ClientCreate, ClientUpdate, ClientResponse
+from .incident_report import IncidentReport, IncidentReportCreate, IncidentReportUpdate, IncidentReportResponse
 from .webhook import Webhook
 from .system_settings import (
     SystemSetting,
@@ -77,6 +78,10 @@ __all__ = [
     "ClientCreate",
     "ClientUpdate",
     "ClientResponse",
+    "IncidentReport",
+    "IncidentReportCreate",
+    "IncidentReportUpdate",
+    "IncidentReportResponse",
     "Webhook",
     "SystemSetting",
     "SystemSettingCreate",

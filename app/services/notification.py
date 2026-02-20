@@ -200,6 +200,17 @@ class NotificationTemplates:
         )
 
     @staticmethod
+    def incident_report_submitted(technician_name: str, site_name: str) -> NotificationTemplate:
+        return NotificationTemplate(
+            title="Incident report submitted",
+            message=(
+                f"{technician_name} submitted an incident report for {site_name}. "
+                "Review and export the report from the Incident Reports tab."
+            ),
+            priority=NotificationPriority.HIGH,
+        )
+
+    @staticmethod
     def sla_warning(site_name: str, priority: str, time_remaining: str) -> NotificationTemplate:
         return NotificationTemplate(
             title="SLA warning",

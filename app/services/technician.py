@@ -121,12 +121,23 @@ class _TechnicianService:
         technician.soft_delete()
         session.commit()
 
+    def read_me(self, user_id: UUID, session: Session) -> TechnicianResponse:
+        statement = (
+            select(Technician)
+            .where(Technician.user_id == user_id)
+            .where(Technician.deleted_at.is_(None))  # type: ignore
+        )
+        technician: Technician | None = session.exec(statement).first()
+        if not technician:
+            raise NotFoundException("technician profile not found for current user")
+        return self.technician_to_response(technician)
+
     def _get_technician(self, technician_id: UUID, session: Session) -> Technician:
         statement = (
             select(Technician)
             .where(Technician.id == technician_id)
             .where(Technician.deleted_at.is_(None)) # type: ignore
-          )  
+          )
         technician: Technician | None = session.exec(statement).first()
         if not technician:
             raise NotFoundException("technician not found")

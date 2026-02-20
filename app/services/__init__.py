@@ -13,6 +13,7 @@ from .routine_inspection import RoutineInspectionService
 from .management_dashboard import ManagementDashboardService
 from .webhook import WebhookService
 from .presence import PresenceService
+from .incident_report import IncidentReportService, get_incident_report_service
 from .pdf import PDFService, get_pdf_service
 from .system_settings import SystemSettingsService, get_system_settings_service
 
@@ -20,6 +21,7 @@ __all__ = ["AuthService", "CurrentUser", "UserService", "TechnicianService",
            "SiteService", "TaskService", "IncidentService", "ReportService",
            "NotificationService", "AccessRequestService", "RoutineCheckService",
            "RoutineIssueService", "RoutineInspectionService", "ManagementDashboardService",
-           "WebhookService", "PresenceService", "PDFService", "get_pdf_service",
+           "WebhookService", "PresenceService", "IncidentReportService", "get_incident_report_service",
+           "PDFService", "get_pdf_service",
            "SystemSettingsService", "get_system_settings_service"
            ]

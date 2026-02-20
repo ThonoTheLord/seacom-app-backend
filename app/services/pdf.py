@@ -15,6 +15,9 @@ from reportlab.lib.utils import ImageReader
 from app.models import Report
 from app.utils.enums import ReportType
 
+# Imported lazily inside generate_incident_report_pdf to avoid circular import at module load
+# from app.models import IncidentReport
+
 
 class PDFService:
     """Service for generating PDF documents from reports."""
@@ -349,6 +352,146 @@ class PDFService:
                 ))
         
         return elements
+
+
+    def generate_incident_report_pdf(self, report: "IncidentReport") -> BytesIO:  # type: ignore[name-defined]
+        """
+        Generate a professional PDF document for an incident report.
+
+        Args:
+            report: The IncidentReport model instance
+
+        Returns:
+            BytesIO buffer containing the PDF document
+        """
+        from app.models.incident_report import IncidentReport  # noqa: F401 – satisfies type checker
+
+        buffer = BytesIO()
+
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=A4,
+            rightMargin=20 * mm,
+            leftMargin=20 * mm,
+            topMargin=20 * mm,
+            bottomMargin=20 * mm,
+            title=f"Incident_Report_{report.id}",
+        )
+
+        story = []
+
+        # ── Logos ──────────────────────────────────────────────────────────────
+        samo_logo = seacom_logo = None
+        try:
+            p = self.assets_path / "samo-logo.png"
+            if p.exists():
+                samo_logo = Image(str(p), width=70 * mm, height=25 * mm)
+        except Exception:
+            pass
+        try:
+            p = self.assets_path / "seacom-logo.png"
+            if p.exists():
+                seacom_logo = Image(str(p), width=70 * mm, height=25 * mm)
+        except Exception:
+            pass
+
+        logo_row = [
+            samo_logo or Paragraph("<b>SAMO TELECOMS</b>", self.styles["CompanyHeader"]),
+            Spacer(1, 0),
+            seacom_logo or Paragraph("<b>SEACOM</b>", self.styles["CompanyHeader"]),
+        ]
+        logo_table = Table([logo_row], colWidths=[70 * mm, 50 * mm, 70 * mm])
+        logo_table.setStyle(TableStyle([
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ("TOPPADDING", (0, 0), (-1, -1), 0),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+        ]))
+        story.append(logo_table)
+        story.append(Spacer(1, 10))
+        story.append(self._create_divider())
+        story.append(Spacer(1, 10))
+
+        # ── Title ──────────────────────────────────────────────────────────────
+        story.append(Paragraph("Incident Report", self.styles["ReportTitle"]))
+        story.append(Spacer(1, 14))
+
+        # ── Metadata table ─────────────────────────────────────────────────────
+        story.append(Paragraph("Report Information", self.styles["SectionHeader"]))
+        metadata_data = [
+            ["Report ID", str(report.id)],
+            ["Incident ID", str(report.incident_id)],
+            ["Site", report.site_name],
+            ["Technician", report.technician_name],
+            ["Report Date", self._format_datetime(report.report_date)],
+            ["Generated", self._format_datetime(report.created_at)],
+        ]
+        metadata_table = Table(metadata_data, colWidths=[110, 360])
+        metadata_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#f0f4f8")),
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1a365d")),
+            ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+            ("FONTNAME", (1, 0), (1, -1), "Helvetica"),
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
+            ("TEXTCOLOR", (0, 0), (0, -1), colors.HexColor("#2d3748")),
+            ("TEXTCOLOR", (1, 0), (1, -1), colors.HexColor("#4a5568")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#ffffff")),
+            ("ALIGN", (0, 0), (0, -1), "RIGHT"),
+            ("ALIGN", (1, 0), (1, -1), "LEFT"),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 10),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+            ("TOPPADDING", (0, 0), (-1, -1), 8),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+            ("GRID", (0, 0), (-1, -1), 1, colors.HexColor("#cbd5e0")),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.HexColor("#ffffff"), colors.HexColor("#f7fafc")]),
+        ]))
+        story.append(metadata_table)
+        story.append(Spacer(1, 16))
+
+        # ── Narrative sections ─────────────────────────────────────────────────
+        sections = [
+            ("1. Introduction", report.introduction),
+            ("2. Problem Statement", report.problem_statement),
+            ("3. Findings", report.findings),
+            ("4. Actions Taken", report.actions_taken),
+            ("5. Root Cause Analysis", report.root_cause_analysis),
+            ("6. Conclusion", report.conclusion),
+        ]
+        for heading, body in sections:
+            story.append(Paragraph(heading, self.styles["SectionHeader"]))
+            story.append(Spacer(1, 6))
+            story.append(Paragraph(body or "N/A", self.styles["FieldValue"]))
+            story.append(Spacer(1, 12))
+
+        # ── Signature placeholder ──────────────────────────────────────────────
+        story.append(Spacer(1, 24))
+        story.append(Paragraph("Technician Signature", self.styles["SectionHeader"]))
+        story.append(Spacer(1, 40))
+        sig_data = [["Signature: _________________________________", f"Date: {self._format_datetime(report.report_date)}"]]
+        sig_table = Table(sig_data, colWidths=[250, 220])
+        sig_table.setStyle(TableStyle([
+            ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
+            ("FONTSIZE", (0, 0), (-1, -1), 10),
+            ("VALIGN", (0, 0), (-1, -1), "BOTTOM"),
+        ]))
+        story.append(sig_table)
+
+        # ── Footer ─────────────────────────────────────────────────────────────
+        story.append(Spacer(1, 24))
+        story.append(self._create_divider())
+        story.append(Spacer(1, 8))
+        story.append(Paragraph(
+            f"Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} UTC | "
+            f"Report ID: {str(report.id)[:8]}",
+            self.styles["Footer"],
+        ))
+
+        doc.build(story)
+        buffer.seek(0)
+        return buffer
 
 
 def get_pdf_service() -> PDFService:
