@@ -89,9 +89,12 @@ class _IncidentReportService:
         technician_name: str,
         site_name: str,
         session: Session,
+        ref_no: str | None = None,
     ) -> None:
         try:
             from app.services.notification import _NotificationService, NotificationTemplates
+            from app.services.email import EmailService
+            from app.utils.funcs import utcnow
 
             notification_service = _NotificationService()
             noc_users = session.exec(
@@ -106,6 +109,13 @@ class _IncidentReportService:
                     site_name=site_name,
                 ),
                 session=session,
+            )
+            # Email NOC with report summary
+            EmailService.send_incident_report_submitted(
+                ref_no=ref_no or "N/A",
+                site_name=site_name,
+                technician_name=technician_name,
+                submitted_at=utcnow().strftime("%d %b %Y %H:%M UTC"),
             )
         except Exception as exc:
             LOG.warning("Failed to send incident report notifications: {}", exc)
@@ -149,6 +159,7 @@ class _IncidentReportService:
             )
         ).first()
         if existing:
+            LOG.warning("Rule 4 blocked: existing report id={} for incident_id={}", existing.id, data.incident_id)
             raise ConflictException("A report already exists for this incident")
 
         report_data = data.model_dump()
@@ -168,11 +179,13 @@ class _IncidentReportService:
                 technician_name=data.technician_name,
                 site_name=data.site_name,
                 session=session,
+                ref_no=getattr(data, "seacom_ref", None) or getattr(data, "ref_no", None),
             )
 
             return self._to_response(report)
         except IntegrityError as e:
             session.rollback()
+            LOG.warning("IntegrityError creating incident report for incident_id={}: {}", data.incident_id, e.orig)
             raise ConflictException(f"A report already exists for this incident: {e.orig}")
         except Exception as e:
             LOG.exception("Unexpected error creating incident report")

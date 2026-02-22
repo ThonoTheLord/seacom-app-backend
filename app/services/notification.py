@@ -45,42 +45,46 @@ class NotificationTemplates:
         return text.title()
 
     @staticmethod
-    def task_assigned(site_name: str, description: str | None) -> NotificationTemplate:
+    def task_assigned(site_name: str, description: str | None, ref_no: str | None = None) -> NotificationTemplate:
+        ref = f" [{ref_no}]" if ref_no else ""
         return NotificationTemplate(
-            title="Task assigned",
+            title=f"Task assigned{ref}",
             message=(
-                f"You were assigned a task at {site_name}. "
-                f"Details: {NotificationTemplates._preview(description)}"
+                f"You have been assigned task{ref} at {site_name}. "
+                f"{NotificationTemplates._preview(description)}"
             ),
             priority=NotificationPriority.HIGH,
         )
 
     @staticmethod
-    def task_started(technician_name: str, site_name: str) -> NotificationTemplate:
+    def task_started(technician_name: str, site_name: str, ref_no: str | None = None) -> NotificationTemplate:
+        ref = f" [{ref_no}]" if ref_no else ""
         return NotificationTemplate(
-            title="Task in progress",
-            message=f"{technician_name} started work at {site_name}.",
+            title=f"Task in progress{ref}",
+            message=f"{technician_name} has started work on task{ref} at {site_name}.",
             priority=NotificationPriority.NORMAL,
         )
 
     @staticmethod
-    def task_completed(technician_name: str, site_name: str) -> NotificationTemplate:
+    def task_completed(technician_name: str, site_name: str, ref_no: str | None = None) -> NotificationTemplate:
+        ref = f" [{ref_no}]" if ref_no else ""
         return NotificationTemplate(
-            title="Task completed",
+            title=f"Task completed{ref}",
             message=(
-                f"{technician_name} completed work at {site_name}. "
-                "Review the generated report."
+                f"{technician_name} completed task{ref} at {site_name}. "
+                "The report is ready for review."
             ),
             priority=NotificationPriority.HIGH,
         )
 
     @staticmethod
-    def task_failed(technician_name: str, site_name: str) -> NotificationTemplate:
+    def task_failed(technician_name: str, site_name: str, ref_no: str | None = None) -> NotificationTemplate:
+        ref = f" [{ref_no}]" if ref_no else ""
         return NotificationTemplate(
-            title="Task failed",
+            title=f"Task failed{ref}",
             message=(
-                f"{technician_name} could not complete the task at {site_name}. "
-                "Immediate review is required."
+                f"{technician_name} could not complete task{ref} at {site_name}. "
+                "Immediate review and reassignment may be required."
             ),
             priority=NotificationPriority.CRITICAL,
         )
@@ -111,12 +115,20 @@ class NotificationTemplates:
         )
 
     @staticmethod
-    def incident_assigned_to_technician(site_name: str, description: str | None) -> NotificationTemplate:
+    def incident_assigned_to_technician(
+        site_name: str,
+        description: str | None,
+        ref_no: str | None = None,
+        severity: str | None = None,
+    ) -> NotificationTemplate:
+        ref = f" [{ref_no}]" if ref_no else ""
+        sev = f" — Severity: {severity.upper()}" if severity else ""
         return NotificationTemplate(
-            title="Incident assigned",
+            title=f"Incident assigned{ref}{sev}",
             message=(
-                f"You were assigned an incident at {site_name}. "
-                f"Details: {NotificationTemplates._preview(description)}"
+                f"You have been assigned incident{ref} at {site_name}{sev}. "
+                f"SLA clock is running — respond immediately. "
+                f"{NotificationTemplates._preview(description)}"
             ),
             priority=NotificationPriority.CRITICAL,
         )
@@ -126,29 +138,38 @@ class NotificationTemplates:
         site_name: str,
         technician_name: str,
         description: str | None,
+        ref_no: str | None = None,
+        severity: str | None = None,
     ) -> NotificationTemplate:
+        ref = f" [{ref_no}]" if ref_no else ""
+        sev = f" ({severity.upper()})" if severity else ""
         return NotificationTemplate(
-            title="New incident created",
+            title=f"New incident{ref}{sev}",
             message=(
-                f"Incident at {site_name} assigned to {technician_name}. "
-                f"Details: {NotificationTemplates._preview(description)}"
+                f"Incident{ref}{sev} at {site_name} assigned to {technician_name}. "
+                f"{NotificationTemplates._preview(description)}"
             ),
             priority=NotificationPriority.HIGH,
         )
 
     @staticmethod
-    def incident_in_progress(technician_name: str, site_name: str) -> NotificationTemplate:
+    def incident_in_progress(technician_name: str, site_name: str, ref_no: str | None = None) -> NotificationTemplate:
+        ref = f" [{ref_no}]" if ref_no else ""
         return NotificationTemplate(
-            title="Incident in progress",
-            message=f"{technician_name} started working on the incident at {site_name}.",
+            title=f"Incident in progress{ref}",
+            message=f"{technician_name} has started working on incident{ref} at {site_name}.",
             priority=NotificationPriority.NORMAL,
         )
 
     @staticmethod
-    def incident_resolved(technician_name: str, site_name: str) -> NotificationTemplate:
+    def incident_resolved(technician_name: str, site_name: str, ref_no: str | None = None) -> NotificationTemplate:
+        ref = f" [{ref_no}]" if ref_no else ""
         return NotificationTemplate(
-            title="Incident resolved",
-            message=f"{technician_name} resolved the incident at {site_name}.",
+            title=f"Incident resolved{ref}",
+            message=(
+                f"{technician_name} resolved incident{ref} at {site_name}. "
+                "Review the incident report and confirm closure."
+            ),
             priority=NotificationPriority.HIGH,
         )
 
@@ -210,26 +231,63 @@ class NotificationTemplates:
             priority=NotificationPriority.HIGH,
         )
 
+    _MILESTONE_LABELS: dict[str, str] = {
+        "respond":      "Response time",
+        "onsite":       "On-site arrival",
+        "temp_restore": "Temporary restoration",
+    }
+
     @staticmethod
-    def sla_warning(site_name: str, priority: str, time_remaining: str) -> NotificationTemplate:
+    def sla_warning(
+        site_name: str,
+        severity: str,
+        time_remaining: str,
+        milestone: str | None = None,
+        ref_no: str | None = None,
+    ) -> NotificationTemplate:
+        ref = f" [{ref_no}]" if ref_no else ""
+        milestone_label = NotificationTemplates._MILESTONE_LABELS.get(milestone or "", milestone or "SLA milestone")
         return NotificationTemplate(
-            title="SLA warning",
+            title=f"SLA at risk{ref} — {milestone_label}",
             message=(
-                f"Incident at {site_name} ({priority.upper()} priority) breaches SLA in {time_remaining}. "
-                "Start work now."
+                f"Incident{ref} at {site_name} ({severity.upper()}) — "
+                f"{milestone_label} deadline in {time_remaining}. "
+                "Act now to avoid an SLA breach."
             ),
             priority=NotificationPriority.HIGH,
         )
 
     @staticmethod
-    def sla_breached(site_name: str, priority: str) -> NotificationTemplate:
+    def sla_breached(
+        site_name: str,
+        severity: str,
+        milestone: str | None = None,
+        ref_no: str | None = None,
+        time_overdue: str | None = None,
+    ) -> NotificationTemplate:
+        ref = f" [{ref_no}]" if ref_no else ""
+        milestone_label = NotificationTemplates._MILESTONE_LABELS.get(milestone or "", milestone or "SLA milestone")
+        overdue_str = f" ({time_overdue} overdue)" if time_overdue else ""
         return NotificationTemplate(
-            title="SLA breached",
+            title=f"SLA BREACHED{ref} — {milestone_label}",
             message=(
-                f"Incident at {site_name} ({priority.upper()} priority) has breached SLA. "
-                "Immediate escalation is required."
+                f"Incident{ref} at {site_name} ({severity.upper()}) has breached the "
+                f"{milestone_label} SLA{overdue_str}. "
+                "Immediate escalation and penalty exposure applies."
             ),
             priority=NotificationPriority.CRITICAL,
+        )
+
+    @staticmethod
+    def maintenance_overdue(site_name: str, schedule_type: str, days_overdue: int) -> NotificationTemplate:
+        type_label = schedule_type.replace("_", " ").title()
+        return NotificationTemplate(
+            title=f"Maintenance overdue — {type_label} at {site_name}",
+            message=(
+                f"The {type_label} maintenance at {site_name} is {days_overdue} day(s) overdue. "
+                "Assign a technician or reschedule to remain compliant."
+            ),
+            priority=NotificationPriority.HIGH if days_overdue >= 7 else NotificationPriority.NORMAL,
         )
 
     @staticmethod

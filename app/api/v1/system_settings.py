@@ -13,6 +13,7 @@ from app.services import CurrentUser
 from app.database import Session
 from app.utils.enums import UserRole
 from app.exceptions.http import UnauthorizedException
+from app.core.settings import app_settings
 
 router = APIRouter(prefix="/settings", tags=["System Settings"])
 
@@ -106,6 +107,51 @@ def bulk_update_settings(
     """Bulk update multiple settings. Admin only."""
     _require_admin(current_user)
     return service.bulk_update_settings(payload, session)
+
+
+@router.post("/email/test", response_model=dict, status_code=200)
+async def test_email(
+    current_user: CurrentUser,
+) -> dict:
+    """
+    Send a test email to the NOC distribution list to verify SMTP config.
+    Admin only. Check your Mailtrap (or real) inbox after calling this.
+    """
+    _require_admin(current_user)
+
+    if not app_settings.smtp_enabled:
+        return {
+            "ok": False,
+            "message": "SMTP is not configured. Set SMTP_HOST, SMTP_USER and SMTP_PASSWORD in .env.",
+            "smtp_host": app_settings.SMTP_HOST or "(not set)",
+            "recipients": [],
+        }
+
+    if not app_settings.noc_email_list:
+        return {
+            "ok": False,
+            "message": "NOC_EMAIL_ADDRESSES is empty — no recipients to send to.",
+            "smtp_host": app_settings.SMTP_HOST,
+            "recipients": [],
+        }
+
+    from app.services.email import EmailService
+    EmailService.send_task_completed(
+        ref_no="TEST-001",
+        site_name="Test Site (email verification)",
+        technician_name="System Administrator",
+        task_type="email_test",
+        completed_at="Now",
+    )
+
+    return {
+        "ok": True,
+        "message": "Test email queued. Check your Mailtrap inbox in a few seconds.",
+        "smtp_host": app_settings.SMTP_HOST,
+        "smtp_port": app_settings.SMTP_PORT,
+        "from": f"{app_settings.SMTP_FROM_NAME} <{app_settings.SMTP_USER}>",
+        "recipients": app_settings.noc_email_list,
+    }
 
 
 @router.post("/debug/toggle", response_model=dict, status_code=200)

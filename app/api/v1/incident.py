@@ -3,7 +3,9 @@ from typing import List
 from uuid import UUID
 
 from app.models import IncidentCreate, IncidentUpdate, IncidentResponse
+from app.models.fault_update import FaultUpdateCreate, FaultUpdateResponse
 from app.services import IncidentService, CurrentUser
+from app.services.fault_update import _FaultUpdateService, get_fault_update_service
 from app.database import Session
 from app.utils.enums import IncidentStatus
 
@@ -18,7 +20,7 @@ def create_incident(
     current_user: CurrentUser,
 ) -> IncidentResponse:
     """"""
-    return service.create_incident(payload, session)
+    return service.create_incident(payload, session, current_user)
 
 
 @router.get("/", response_model=List[IncidentResponse], status_code=200)
@@ -34,6 +36,37 @@ def read_incidents(
 ) -> List[IncidentResponse]:
     """"""
     return service.read_incidents(session, technician_id, status, client_id, offset, limit)
+
+
+@router.get("/penalty-summary", status_code=200)
+def get_penalty_summary(
+    session: Session,
+    current_user: CurrentUser,
+) -> dict:
+    """
+    Return the current quarter's penalty exposure summary per Annexure H.
+    Flags termination risk when 3+ SLA faults have been breached this quarter.
+    """
+    from app.services.penalty_calculator import get_quarter_penalty_summary
+    from app.utils.funcs import utcnow
+    from sqlmodel import select
+    from app.models import Incident
+    from sqlalchemy import and_
+
+    now = utcnow()
+    q = (now.month - 1) // 3
+    quarter_start = now.replace(month=q * 3 + 1, day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    incidents = session.exec(
+        select(Incident).where(
+            and_(
+                Incident.deleted_at.is_(None),
+                Incident.start_time >= quarter_start,
+            )
+        )
+    ).all()
+
+    return get_quarter_penalty_summary(incidents)
 
 
 @router.get("/{incident_id}", response_model=IncidentResponse, status_code=200)
@@ -92,21 +125,106 @@ def resolve_incident(
     return service.resolve_incident(incident_id, session)
 
 
+# ── SLA Milestone endpoints ────────────────────────────────────────────────────
+
+@router.post("/{incident_id}/respond", response_model=IncidentResponse, status_code=200)
+def mark_responded(
+    incident_id: UUID,
+    service: IncidentService,
+    session: Session,
+    current_user: CurrentUser,
+) -> IncidentResponse:
+    """Record that the technician has acknowledged/responded to the fault."""
+    return service.mark_responded(incident_id, session)
+
+
+@router.post("/{incident_id}/arrive", response_model=IncidentResponse, status_code=200)
+def mark_arrived_on_site(
+    incident_id: UUID,
+    service: IncidentService,
+    session: Session,
+    current_user: CurrentUser,
+) -> IncidentResponse:
+    """Record that the technician has arrived on site (SLA milestone 2)."""
+    return service.mark_arrived_on_site(incident_id, session)
+
+
+@router.post("/{incident_id}/temp-restore", response_model=IncidentResponse, status_code=200)
+def mark_temporarily_restored(
+    incident_id: UUID,
+    service: IncidentService,
+    session: Session,
+    current_user: CurrentUser,
+) -> IncidentResponse:
+    """Record that service has been temporarily restored (SLA milestone 3)."""
+    return service.mark_temporarily_restored(incident_id, session)
+
+
+@router.post("/{incident_id}/perm-restore", response_model=IncidentResponse, status_code=200)
+def mark_permanently_restored(
+    incident_id: UUID,
+    service: IncidentService,
+    session: Session,
+    current_user: CurrentUser,
+) -> IncidentResponse:
+    """Record that service has been permanently restored."""
+    return service.mark_permanently_restored(incident_id, session)
+
+
+# ── Fault Update (communication log) sub-endpoints ────────────────────────────
+
+@router.get("/{incident_id}/updates", response_model=List[FaultUpdateResponse], status_code=200)
+def list_fault_updates(
+    incident_id: UUID,
+    session: Session,
+    current_user: CurrentUser,
+) -> List[FaultUpdateResponse]:
+    """List all logged updates for an incident (Annexure H communication log)."""
+    svc = get_fault_update_service()
+    return svc.list_updates(incident_id, session)
+
+
+@router.post("/{incident_id}/updates", response_model=FaultUpdateResponse, status_code=201)
+def create_fault_update(
+    incident_id: UUID,
+    payload: FaultUpdateCreate,
+    session: Session,
+    current_user: CurrentUser,
+) -> FaultUpdateResponse:
+    """Log a fault update (phone call, email, or app update)."""
+    from app.models import User
+    user = session.get(User, current_user.user_id)
+    sent_by_name = f"{user.name} {user.surname}" if user else str(current_user.user_id)
+    svc = get_fault_update_service()
+    return svc.create_update(incident_id, payload, current_user.user_id, sent_by_name, session)
+
+
+@router.get("/{incident_id}/updates/due-status", status_code=200)
+def get_update_due_status(
+    incident_id: UUID,
+    session: Session,
+    current_user: CurrentUser,
+) -> dict:
+    """Return whether a new fault update is currently overdue."""
+    svc = get_fault_update_service()
+    return svc.get_update_due_status(incident_id, session)
+
+
+# ── SLA / checker endpoints ────────────────────────────────────────────────────
+
 @router.post("/check-sla", status_code=200)
 def check_sla_breaches_endpoint(
     session: Session,
     current_user: CurrentUser,
 ) -> dict:
     """
-    Check for incidents approaching or breaching SLA and send notifications.
-    
-    This endpoint can be called periodically (e.g., via cron job) to check
-    for SLA warnings and breaches, sending notifications to technicians.
+    Check all active incidents for SLA warnings/breaches and fire notifications.
+    Intended to be called periodically (e.g., via a cron job every 15 minutes).
     """
     from app.services.sla_checker import check_sla_breaches
-    
+
     warnings, breaches = check_sla_breaches(session)
-    
+
     return {
         "checked_at": __import__("datetime").datetime.utcnow().isoformat(),
         "warnings_sent": len(warnings),
@@ -123,17 +241,70 @@ def get_incident_sla_status(
     session: Session,
     current_user: CurrentUser,
 ) -> dict:
-    """Get the SLA status for a specific incident."""
+    """Get the three-milestone SLA status for a specific incident."""
     from app.services.sla_checker import get_sla_status_for_incident
     from sqlmodel import select
     from app.models import Incident
-    
-    statement = select(Incident).where(Incident.id == incident_id, Incident.deleted_at.is_(None))
-    incident = session.exec(statement).first()
-    
+
+    incident = session.exec(
+        select(Incident).where(Incident.id == incident_id, Incident.deleted_at.is_(None))
+    ).first()
+
     if not incident:
         from app.exceptions.http import NotFoundException
         raise NotFoundException("incident not found")
-    
+
     return get_sla_status_for_incident(incident)
 
+
+# ── Technician Help Alert ──────────────────────────────────────────────────────
+
+from pydantic import BaseModel
+from typing import Literal
+
+
+class HelpAlertRequest(BaseModel):
+    priority: Literal["low", "medium", "high", "critical"]
+    message: str
+
+
+@router.post("/help-alert", status_code=204)
+def send_help_alert(
+    payload: HelpAlertRequest,
+    session: Session,
+    current_user: CurrentUser,
+) -> None:
+    """
+    Send an urgent help alert from a technician to all NOC operators and managers.
+    Uses the existing technician_escalation notification template.
+    """
+    from sqlmodel import select
+    from app.models import User, Technician
+    from app.utils.enums import UserRole
+    from app.services.notification import _NotificationService, NotificationTemplates
+
+    # Resolve sender name
+    sender = session.get(User, current_user.user_id)
+    if sender:
+        tech_name = f"{sender.name} {sender.surname}"
+    else:
+        tech_name = "Unknown Technician"
+
+    # Notify all NOC operators and managers
+    recipients = session.exec(
+        select(User).where(
+            User.role.in_([UserRole.NOC, UserRole.MANAGER]),
+            User.deleted_at.is_(None),
+        )
+    ).all()
+
+    notification_service = _NotificationService()
+    notification_service.create_notifications_from_template(
+        user_ids=(u.id for u in recipients),
+        template=NotificationTemplates.technician_escalation(
+            technician_name=tech_name,
+            priority=payload.priority,
+            reason=payload.message,
+        ),
+        session=session,
+    )

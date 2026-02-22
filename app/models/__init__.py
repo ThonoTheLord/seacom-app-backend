@@ -13,6 +13,9 @@ from .routine_issues import RoutineIssue, RoutineIssueCreate, RoutineIssueRespon
 from .routine_inspection import RoutineInspection, RoutineInspectionCreate, RoutineInspectionUpdate, RoutineInspectionResponse
 from .client import Client, ClientCreate, ClientUpdate, ClientResponse
 from .incident_report import IncidentReport, IncidentReportCreate, IncidentReportUpdate, IncidentReportResponse
+from .fault_update import FaultUpdate, FaultUpdateCreate, FaultUpdateResponse
+from .maintenance_schedule import MaintenanceSchedule, MaintenanceScheduleCreate, MaintenanceScheduleUpdate, MaintenanceScheduleResponse
+from .route_patrol import RoutePatrol, RoutePatrolCreate, RoutePatrolUpdate, RoutePatrolResponse
 from .webhook import Webhook
 from .system_settings import (
     SystemSetting,
@@ -82,6 +85,17 @@ __all__ = [
     "IncidentReportCreate",
     "IncidentReportUpdate",
     "IncidentReportResponse",
+    "FaultUpdate",
+    "FaultUpdateCreate",
+    "FaultUpdateResponse",
+    "MaintenanceSchedule",
+    "MaintenanceScheduleCreate",
+    "MaintenanceScheduleUpdate",
+    "MaintenanceScheduleResponse",
+    "RoutePatrol",
+    "RoutePatrolCreate",
+    "RoutePatrolUpdate",
+    "RoutePatrolResponse",
     "Webhook",
     "SystemSetting",
     "SystemSettingCreate",

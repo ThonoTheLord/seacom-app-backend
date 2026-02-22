@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip show:*)",
+      "Bash(C:/Python314/python.exe:*)",
+      "Bash(py:*)",
+      "Bash(py -c \"import pdfplumber; print\\(''pdfplumber ok''\\)\")",
+      "Bash(uv run:*)"
+    ]
+  }
+}

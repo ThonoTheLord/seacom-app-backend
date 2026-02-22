@@ -88,7 +88,15 @@ def require_manager_or_admin(current_user: TokenData = Depends(get_current_user)
         raise ForbiddenException("Manager or Admin access required")
     return current_user
 
+def require_noc_or_manager_or_admin(current_user: TokenData = Depends(get_current_user)) -> TokenData:
+    """Dependency that ensures the current user is NOC, manager, or admin."""
+    if current_user.role not in (UserRole.ADMIN, UserRole.MANAGER, UserRole.NOC):
+        raise ForbiddenException("NOC, Manager, or Admin access required")
+    return current_user
+
 
 AuthService = Annotated[_AuthService, Depends(get_auth_service)]
 CurrentUser = Annotated[TokenData, Depends(get_current_user)]
+NocOrAdminUser = Annotated[TokenData, Depends(require_noc_or_admin)]
 ManagerOrAdminUser = Annotated[TokenData, Depends(require_manager_or_admin)]
+NocOrManagerOrAdminUser = Annotated[TokenData, Depends(require_noc_or_manager_or_admin)]

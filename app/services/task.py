@@ -9,6 +9,7 @@ from loguru import logger as LOG
 
 from app.utils.enums import TaskType, TaskStatus, ReportType, ReportStatus, UserRole
 from app.models import Task, TaskCreate, TaskUpdate, TaskResponse, Site, Technician, User, Report
+from app.models.auth import TokenData
 from app.exceptions.http import (
     ConflictException,
     InternalServerErrorException,
@@ -18,21 +19,43 @@ from app.exceptions.http import (
 
 class _TaskService:
     _REPORT_TYPE_ALIASES: dict[str, str] = {
-        "rhs": ReportType.GENERAL,
-        "corrective": ReportType.GENERAL,
-        "remote-hand-support": ReportType.GENERAL,
         "routine-maintenance": ReportType.ROUTINE_DRIVE,
     }
 
-    def task_to_response(self, task: Task) -> TaskResponse:
+    def task_to_response(self, task: Task, session: Session) -> TaskResponse:
         user = task.technician.user
+        additional_names: list[str] = []
+        if task.additional_technician_ids:
+            ids: list[UUID] = []
+            for id_str in task.additional_technician_ids:
+                try:
+                    ids.append(UUID(id_str))
+                except ValueError:
+                    pass
+            if ids:
+                extra_techs = session.exec(
+                    select(Technician)
+                    .options(selectinload(Technician.user))
+                    .where(Technician.id.in_(ids), Technician.deleted_at.is_(None))  # type: ignore
+                ).all()
+                for tech in extra_techs:
+                    if tech.user:
+                        additional_names.append(f"{tech.user.name} {tech.user.surname}")
+        task_data = task.model_dump()
+        # Coerce None → "" for str fields that are computed or may be NULL for older rows
+        task_data["assigned_by_name"] = task_data.get("assigned_by_name") or ""
+        # Extract site GPS coordinates for map links (may be None if site has no location)
+        coords = task.site.get_coordinates() if task.site else None
         return TaskResponse(
-            **task.model_dump(),
+            **task_data,
             site_name=task.site.name,
             technician_fullname=f"{user.name} {user.surname}",
             num_attachments=len(task.attachments or []),
-            site_region=task.site.region
-            )
+            site_region=task.site.region,
+            additional_technician_names=additional_names,
+            site_latitude=coords[0] if coords else None,
+            site_longitude=coords[1] if coords else None,
+        )
 
     def _resolve_report_type(self, task: Task) -> ReportType:
         """Resolve report type from task.report_type with legacy alias support."""
@@ -49,7 +72,7 @@ class _TaskService:
 
         if task.task_type == TaskType.ROUTINE_MAINTENANCE:
             return ReportType.ROUTINE_DRIVE
-        return ReportType.GENERAL
+        return ReportType.DIESEL
 
     def _get_active_report_for_task(self, task_id: UUID, session: Session) -> Report | None:
         statement = (
@@ -111,20 +134,35 @@ class _TaskService:
                 return existing_after_race, False
             raise
 
-    def create_task(self, data: TaskCreate, session: Session) -> TaskResponse:
+    def create_task(self, data: TaskCreate, session: Session, current_user: TokenData | None = None) -> TaskResponse:
         # Handle site
         statement = select(Site).where(Site.id == data.site_id, Site.deleted_at.is_(None)) # type: ignore
         site: Site | None = session.exec(statement).first()
         if not site:
             raise NotFoundException("site not found")
-        
+
         # Handle technician
         statement = select(Technician).where(Technician.id == data.technician_id, Technician.deleted_at.is_(None)) # type: ignore
         technician: Technician | None = session.exec(statement).first()
         if not technician:
             raise NotFoundException("technician not found")
 
-        task: Task = Task(**data.model_dump(), site=site, technician=technician)
+        # Look up assigning user name
+        assigned_by_user_id = None
+        assigned_by_name = None
+        if current_user:
+            assigner = session.get(User, current_user.user_id)
+            if assigner:
+                assigned_by_user_id = assigner.id
+                assigned_by_name = f"{assigner.name} {assigner.surname}"
+
+        task: Task = Task(
+            **data.model_dump(),
+            site=site,
+            technician=technician,
+            assigned_by_user_id=assigned_by_user_id,
+            assigned_by_name=assigned_by_name,
+        )
         try:
             session.add(task)
             session.commit()
@@ -139,7 +177,7 @@ class _TaskService:
                 session=session,
             )
             
-            return self.task_to_response(task)
+            return self.task_to_response(task, session)
         except IntegrityError as e:
             session.rollback()
             raise ConflictException(f"Error creating task: {e.orig}")
@@ -149,7 +187,7 @@ class _TaskService:
 
     def read_task(self, task_id: UUID, session: Session) -> TaskResponse:
         task = self._get_task(task_id, session)
-        return self.task_to_response(task)
+        return self.task_to_response(task, session)
 
     def read_tasks(
         self,
@@ -178,7 +216,7 @@ class _TaskService:
 
         statement = statement.offset(offset).limit(limit)
         tasks = session.exec(statement).all()
-        return [self.task_to_response(task) for task in tasks]
+        return [self.task_to_response(task, session) for task in tasks]
 
     def update_task(
         self, task_id: UUID, data: TaskUpdate, session: Session
@@ -189,7 +227,7 @@ class _TaskService:
         )
 
         if not update_data:
-            return self.task_to_response(task)
+            return self.task_to_response(task, session)
 
         for k, v in update_data.items():
             setattr(task, k, v)
@@ -199,7 +237,7 @@ class _TaskService:
         try:
             session.commit()
             session.refresh(task)
-            return self.task_to_response(task)
+            return self.task_to_response(task, session)
         except IntegrityError as e:
             session.rollback()
             raise ConflictException(f"Error updating task: {e.orig}")
@@ -213,18 +251,22 @@ class _TaskService:
         session.commit()
     
     def start_task(self, task_id: UUID, session: Session) -> TaskResponse:
-        """Start a task, ensure auto-report exists, and notify NOC operators."""
+        """Start a task, ensure auto-report exists (skipped for RHS), and notify NOC operators."""
         task = self._get_task(task_id, session)
         task.start()
         try:
             session.commit()
             session.refresh(task)
 
-            report, report_created = self._ensure_auto_report_for_task(
-                task=task,
-                session=session,
-                source="task_start",
-            )
+            # RHS tasks do not require a formal report — feedback is captured at completion
+            report_created = False
+            if task.task_type != TaskType.RHS:
+                _, report_created = self._ensure_auto_report_for_task(
+                    task=task,
+                    session=session,
+                    source="task_start",
+                )
+            report = self._get_active_report_for_task(task.id, session)
             
             # Notify NOC operators that task has started
             from app.services.notification import _NotificationService, NotificationTemplates
@@ -254,8 +296,8 @@ class _TaskService:
                     template=NotificationTemplates.report_auto_created(report.report_type, site_name),
                     session=session,
                 )
-            
-            return self.task_to_response(task)
+
+            return self.task_to_response(task, session)
         except IntegrityError as e:
             session.rollback()
             LOG.error("Task start failed. task_id={} reason={}", task_id, e.orig)
@@ -265,6 +307,42 @@ class _TaskService:
             LOG.exception("Unexpected error starting task. task_id={} error={}", task_id, e)
             raise InternalServerErrorException(f"Unexpected error starting task: {e}")
     
+    def submit_feedback(self, task_id: UUID, feedback: str, session: Session) -> TaskResponse:
+        """Submit RHS feedback and complete the task. No report is created."""
+        task = self._get_task(task_id, session)
+        task.feedback = feedback
+        task.complete()
+        try:
+            session.commit()
+            session.refresh(task)
+
+            from app.services.notification import _NotificationService, NotificationTemplates
+            notification_service = _NotificationService()
+            noc_users = session.exec(
+                select(User).where(and_(User.role == UserRole.NOC, User.deleted_at.is_(None)))
+            ).all()
+            site_name = task.site.name if task.site else "Unknown Site"
+            tech_name = f"{task.technician.user.name} {task.technician.user.surname}" if task.technician else "Unknown"
+            ref_no = task.seacom_ref or None
+            notification_service.create_notifications_from_template(
+                user_ids=(noc_user.id for noc_user in noc_users),
+                template=NotificationTemplates.task_completed(tech_name, site_name, ref_no=ref_no),
+                session=session,
+            )
+            from app.services.email import EmailService
+            from app.utils.funcs import utcnow
+            EmailService.send_task_completed(
+                ref_no=ref_no or "N/A",
+                site_name=site_name,
+                technician_name=tech_name,
+                task_type="RHS — " + (feedback[:80] + "…" if len(feedback) > 80 else feedback),
+                completed_at=utcnow().strftime("%d %b %Y %H:%M UTC"),
+            )
+            return self.task_to_response(task, session)
+        except Exception as e:
+            session.rollback()
+            raise InternalServerErrorException(f"Unexpected error submitting feedback: {e}")
+
     def complete_task(self, task_id: UUID, session: Session) -> TaskResponse:
         """Complete a task, self-heal missing report if needed, and notify NOC operators."""
         task = self._get_task(task_id, session)
@@ -273,11 +351,15 @@ class _TaskService:
             session.commit()
             session.refresh(task)
 
-            report, report_created = self._ensure_auto_report_for_task(
-                task=task,
-                session=session,
-                source="task_complete_self_heal",
-            )
+            # RHS tasks use submit_feedback instead — skip auto-report
+            report_created = False
+            report = None
+            if task.task_type != TaskType.RHS:
+                report, report_created = self._ensure_auto_report_for_task(
+                    task=task,
+                    session=session,
+                    source="task_complete_self_heal",
+                )
             
             # Notify NOC operators that task is completed
             from app.services.notification import _NotificationService, NotificationTemplates
@@ -295,21 +377,33 @@ class _TaskService:
             site_name = task.site.name if task.site else "Unknown Site"
             tech_name = f"{task.technician.user.name} {task.technician.user.surname}" if task.technician else "Unknown"
             
+            ref_no = task.seacom_ref or None
             notification_service.create_notifications_from_template(
                 user_ids=(noc_user.id for noc_user in noc_users),
-                template=NotificationTemplates.task_completed(tech_name, site_name),
+                template=NotificationTemplates.task_completed(tech_name, site_name, ref_no=ref_no),
                 session=session,
             )
-            
+
+            # Email NOC distribution list
+            from app.services.email import EmailService
+            from app.utils.funcs import utcnow
+            EmailService.send_task_completed(
+                ref_no=ref_no or "N/A",
+                site_name=site_name,
+                technician_name=tech_name,
+                task_type=str(task.task_type),
+                completed_at=utcnow().strftime("%d %b %Y %H:%M UTC"),
+            )
+
             # Self-heal path notification: report was missing and auto-created at completion.
-            if report_created and task.technician and task.technician.user_id:
+            if report_created and report and task.technician and task.technician.user_id:
                 notification_service.create_notification_from_template(
                     user_id=task.technician.user_id,
                     template=NotificationTemplates.report_auto_created(report.report_type, site_name),
                     session=session,
                 )
-            
-            return self.task_to_response(task)
+
+            return self.task_to_response(task, session)
         except IntegrityError as e:
             session.rollback()
             LOG.error("Task completion failed. task_id={} reason={}", task_id, e.orig)
@@ -349,10 +443,34 @@ class _TaskService:
                 session=session,
             )
             
-            return self.task_to_response(task)
+            return self.task_to_response(task, session)
         except Exception as e:
             session.rollback()
             raise InternalServerErrorException(f"Unexpected error failing task: {e}")
+
+    def hold_task(self, task_id: UUID, reason: str | None, session: Session) -> TaskResponse:
+        """Put a started task on hold so the technician can continue the next day."""
+        task = self._get_task(task_id, session)
+        task.hold(reason)
+        try:
+            session.commit()
+            session.refresh(task)
+            return self.task_to_response(task, session)
+        except Exception as e:
+            session.rollback()
+            raise InternalServerErrorException(f"Unexpected error holding task: {e}")
+
+    def resume_task(self, task_id: UUID, session: Session) -> TaskResponse:
+        """Resume an on-hold task, restoring it to started status."""
+        task = self._get_task(task_id, session)
+        task.resume()
+        try:
+            session.commit()
+            session.refresh(task)
+            return self.task_to_response(task, session)
+        except Exception as e:
+            session.rollback()
+            raise InternalServerErrorException(f"Unexpected error resuming task: {e}")
 
     def _get_task(self, task_id: UUID, session: Session) -> Task:
         statement = (
