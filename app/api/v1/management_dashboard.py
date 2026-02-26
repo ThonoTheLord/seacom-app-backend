@@ -656,10 +656,10 @@ def get_technician_workload(
                         t.id::text AS technician_id,
                         u.name || ' ' || u.surname AS technician_name,
                         COUNT(DISTINCT inc.id) FILTER (
-                            WHERE inc.status NOT IN ('resolved', 'permanently_restored')
+                            WHERE inc.status <> 'resolved'
                         ) AS active_incidents,
                         COUNT(DISTINCT tsk.id) FILTER (
-                            WHERE tsk.status NOT IN ('completed', 'cancelled')
+                            WHERE tsk.status <> 'completed'
                         ) AS active_tasks,
                         COUNT(DISTINCT inc.id) FILTER (
                             WHERE inc.created_at >= NOW() - INTERVAL '30 days'
@@ -677,10 +677,10 @@ def get_technician_workload(
                     GROUP BY t.id, u.name, u.surname
                     ORDER BY (
                         COUNT(DISTINCT inc.id) FILTER (
-                            WHERE inc.status NOT IN ('resolved', 'permanently_restored')
+                            WHERE inc.status <> 'resolved'
                         ) +
                         COUNT(DISTINCT tsk.id) FILTER (
-                            WHERE tsk.status NOT IN ('completed', 'cancelled')
+                            WHERE tsk.status <> 'completed'
                         )
                     ) DESC
                 """),
