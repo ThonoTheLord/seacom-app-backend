@@ -42,7 +42,33 @@ class _RoutePatrolService:
         session.add(patrol)
         session.commit()
         session.refresh(patrol)
+
+        # Auto-mark the technician's routine_drive maintenance schedule as done
+        self._mark_routine_drive_done(data.technician_id, session)
+
         return _enrich(patrol, session)
+
+    def _mark_routine_drive_done(self, technician_id: UUID, session: Session) -> None:
+        """After a route patrol is submitted, advance the maintenance schedule for this technician."""
+        from app.models.maintenance_schedule import MaintenanceSchedule
+        from app.utils.funcs import utcnow
+        from datetime import timedelta
+
+        sched = session.exec(
+            select(MaintenanceSchedule).where(
+                MaintenanceSchedule.assigned_technician_id == technician_id,
+                MaintenanceSchedule.schedule_type == "routine_drive",
+                MaintenanceSchedule.deleted_at.is_(None),  # type: ignore
+                MaintenanceSchedule.is_active == True,  # type: ignore noqa: E712
+            )
+        ).first()
+
+        if sched:
+            now = utcnow()
+            sched.last_run_at = now
+            sched.next_due_at = now + timedelta(days=7)
+            session.add(sched)
+            session.commit()
 
     def list_patrols(
         self,

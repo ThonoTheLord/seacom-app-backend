@@ -23,7 +23,7 @@ def test_resolve_report_type_normalizes_rhs_alias() -> None:
 
     resolved = service._resolve_report_type(task)  # type: ignore[arg-type]
 
-    assert resolved == ReportType.GENERAL
+    assert resolved == ReportType.DIESEL
 
 
 def test_resolve_report_type_normalizes_corrective_alias() -> None:
@@ -32,7 +32,7 @@ def test_resolve_report_type_normalizes_corrective_alias() -> None:
 
     resolved = service._resolve_report_type(task)  # type: ignore[arg-type]
 
-    assert resolved == ReportType.GENERAL
+    assert resolved == ReportType.DIESEL
 
 
 def test_resolve_report_type_maps_routine_maintenance_alias() -> None:
@@ -50,7 +50,7 @@ def test_resolve_report_type_falls_back_to_task_type_for_rhs() -> None:
 
     resolved = service._resolve_report_type(task)  # type: ignore[arg-type]
 
-    assert resolved == ReportType.GENERAL
+    assert resolved == ReportType.DIESEL
 
 
 def test_resolve_report_type_falls_back_to_task_type_for_routine() -> None:

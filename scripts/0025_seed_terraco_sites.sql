@@ -1,9 +1,9 @@
--- Migration 0025: Seed Terraco RHS primary sites
+﻿-- Migration 0025: Seed Terraco RHS primary sites
 --
 -- Inserts 4 Terraco data-centre / hosting sites that are frequent
 -- destinations for Remote Hand Support tasks.
 --
--- Region values use PostgreSQL enum labels (Python enum .name):
+-- Region values use the PostgreSQL native enum labels (uppercase):
 --   GAUTENG, KZN, WESTERN_CAPE
 --
 -- Coordinates sourced from Google Maps / Terraco site listings.

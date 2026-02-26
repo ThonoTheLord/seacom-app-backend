@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e \":*)",
+      "Read(//c/Users/BonganiNkomo/OneDrive - Samo Engineering/Desktop/Coding/Samo Dev Projects/seacom-app-frontend/src/pages/dashboards/technician/**)"
+    ]
+  }
+}

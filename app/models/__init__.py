@@ -16,6 +16,7 @@ from .incident_report import IncidentReport, IncidentReportCreate, IncidentRepor
 from .fault_update import FaultUpdate, FaultUpdateCreate, FaultUpdateResponse
 from .maintenance_schedule import MaintenanceSchedule, MaintenanceScheduleCreate, MaintenanceScheduleUpdate, MaintenanceScheduleResponse
 from .route_patrol import RoutePatrol, RoutePatrolCreate, RoutePatrolUpdate, RoutePatrolResponse
+from .technician_site import TechnicianSite
 from .webhook import Webhook
 from .system_settings import (
     SystemSetting,
@@ -96,6 +97,7 @@ __all__ = [
     "RoutePatrolCreate",
     "RoutePatrolUpdate",
     "RoutePatrolResponse",
+    "TechnicianSite",
     "Webhook",
     "SystemSetting",
     "SystemSettingCreate",

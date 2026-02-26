@@ -11,6 +11,7 @@ from app.utils.enums import TaskType, TaskStatus, ReportType, ReportStatus, User
 from app.models import Task, TaskCreate, TaskUpdate, TaskResponse, Site, Technician, User, Report
 from app.models.auth import TokenData
 from app.exceptions.http import (
+    BadRequestException,
     ConflictException,
     InternalServerErrorException,
     NotFoundException,
@@ -19,6 +20,8 @@ from app.exceptions.http import (
 
 class _TaskService:
     _REPORT_TYPE_ALIASES: dict[str, str] = {
+        "rhs": ReportType.DIESEL,
+        "corrective": ReportType.DIESEL,
         "routine-maintenance": ReportType.ROUTINE_DRIVE,
     }
 
@@ -451,6 +454,10 @@ class _TaskService:
     def hold_task(self, task_id: UUID, reason: str | None, session: Session) -> TaskResponse:
         """Put a started task on hold so the technician can continue the next day."""
         task = self._get_task(task_id, session)
+        if task.status != TaskStatus.STARTED:
+            raise BadRequestException(
+                f"Cannot hold a task that is not started (current status: {task.status})"
+            )
         task.hold(reason)
         try:
             session.commit()
@@ -463,6 +470,10 @@ class _TaskService:
     def resume_task(self, task_id: UUID, session: Session) -> TaskResponse:
         """Resume an on-hold task, restoring it to started status."""
         task = self._get_task(task_id, session)
+        if task.status != TaskStatus.ON_HOLD:
+            raise BadRequestException(
+                f"Cannot resume a task that is not on hold (current status: {task.status})"
+            )
         task.resume()
         try:
             session.commit()

@@ -28,6 +28,28 @@ class PDFService:
         self.styles = getSampleStyleSheet()
         self._setup_custom_styles()
         self.assets_path = Path(__file__).parent.parent / "assets"
+        backend_root = Path(__file__).resolve().parents[2]
+        workspace_root = backend_root.parent
+        self.cover_search_paths = [
+            self.assets_path / "Report" / "coverpages",
+            self.assets_path / "Report Cover Pages",
+            backend_root / "assets" / "Report" / "coverpages",
+            backend_root / "assets" / "Report Cover Pages",
+            workspace_root / "seacom-app-frontend" / "src" / "assets" / "Report Cover Pages",
+        ]
+        self.cover_file_map = {
+            "base": "Base Cover.jpg",
+            "diesel": "Diesel Generator Cover Page.jpg",
+            "repeater": "Telecoms.jpg",
+            "routine-drive": "RHS.jpg",
+            "incident": "Incident.jpg",
+            "executive": "Executive.jpg",
+            "regional": "Regional.jpg",
+            "technician": "Technicians.jpg",
+            "client": "Seacom Client Report.jpg",
+            "telecoms": "Telecoms.jpg",
+            "rhs": "RHS.jpg",
+        }
 
     def _setup_custom_styles(self):
         """Setup custom paragraph styles for professional PDF design."""
@@ -97,6 +119,42 @@ class PDFService:
             spaceBefore=20
         ))
 
+    def _resolve_cover_image_path(self, cover_key: str | None) -> Path | None:
+        """Resolve a cover image path using configured search paths with base fallback."""
+        if cover_key is None:
+            cover_key = "base"
+
+        candidates = [cover_key]
+        if cover_key != "base":
+            candidates.append("base")
+
+        for key in candidates:
+            filename = self.cover_file_map.get(key)
+            if not filename:
+                continue
+            for base_path in self.cover_search_paths:
+                candidate = base_path / filename
+                if candidate.exists():
+                    return candidate
+        return None
+
+    def _cover_palette(self, cover_key: str | None) -> tuple[str, str]:
+        """Return (primary, accent) colors by report style key."""
+        palettes = {
+            "base": ("#0b2265", "#1a365d"),
+            "diesel": ("#6b3f00", "#9a6700"),
+            "repeater": ("#0e7490", "#155e75"),
+            "routine-drive": ("#5b21b6", "#6d28d9"),
+            "incident": ("#7f1d1d", "#991b1b"),
+            "executive": ("#0b2265", "#1a365d"),
+            "regional": ("#1d4ed8", "#1e40af"),
+            "technician": ("#166534", "#15803d"),
+            "client": ("#0f172a", "#0b2265"),
+            "telecoms": ("#155e75", "#0e7490"),
+            "rhs": ("#4c1d95", "#5b21b6"),
+        }
+        return palettes.get(cover_key or "base", palettes["base"])
+
     # ── Cover page builder ───────────────────────────────────────────────────
 
     def _build_cover_page(
@@ -104,6 +162,7 @@ class PDFService:
         title: str,
         subtitle: str,
         details: list[list[str]],
+        cover_key: str | None = None,
     ) -> list:
         """
         Build a professional full-cover first page. Returns a list of flowables
@@ -115,6 +174,17 @@ class PDFService:
             details:  List of [label, value] rows for the info table
         """
         elements = []
+        primary_color, accent_color = self._cover_palette(cover_key)
+
+        cover_image_path = self._resolve_cover_image_path(cover_key)
+        if cover_image_path is not None:
+            try:
+                hero = Image(str(cover_image_path), width=170 * mm, height=85 * mm)
+                hero.hAlign = "CENTER"
+                elements.append(hero)
+                elements.append(Spacer(1, 8 * mm))
+            except Exception:
+                pass
 
         # Load logos
         samo_logo = seacom_logo = None
@@ -147,7 +217,7 @@ class PDFService:
         ]]
         header_table = Table(header_data, colWidths=[60 * mm, 50 * mm, 60 * mm], rowHeights=[32 * mm])
         header_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#0b2265')),
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(primary_color)),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('LEFTPADDING', (0, 0), (-1, -1), 8),
@@ -163,7 +233,7 @@ class PDFService:
             'CoverTitle',
             parent=self.styles['Normal'],
             fontSize=28,
-            textColor=colors.HexColor('#1a365d'),
+            textColor=colors.HexColor(primary_color),
             alignment=TA_CENTER,
             fontName='Helvetica-Bold',
             spaceAfter=6,
@@ -183,7 +253,7 @@ class PDFService:
         elements.append(Spacer(1, 8 * mm))
 
         # ── Thin navy divider ─────────────────────────────────────────────────
-        elements.append(self._create_divider())
+        elements.append(self._create_divider(color_hex=accent_color))
         elements.append(Spacer(1, 8 * mm))
 
         # ── Details table ────────────────────────────────────────────────────
@@ -284,10 +354,12 @@ class PDFService:
             except Exception:
                 pass
             cover_details.append(["Generated", self._format_datetime(report.created_at)])
+            report_cover_key = report.report_type.value if getattr(report, "report_type", None) else "base"
             story.extend(self._build_cover_page(
                 title=f"{report_type_display} Report",
                 subtitle="Field Report — SAMO TELECOMS × SEACOM",
                 details=cover_details,
+                cover_key=report_cover_key,
             ))
 
             # Create header with company logos
@@ -488,6 +560,7 @@ class PDFService:
             title="Incident Report",
             subtitle=f"Severity: {inc_severity} — SAMO TELECOMS × SEACOM",
             details=cover_details,
+            cover_key="incident",
         ))
 
         # ── Logos ──────────────────────────────────────────────────────────────
@@ -656,6 +729,7 @@ class PDFService:
             title="Executive Management Report",
             subtitle=f"{month_label} — SAMO TELECOMS × SEACOM",
             details=cover_details,
+            cover_key="executive",
         ))
 
         # ── Page 2: Logos + Title ─────────────────────────────────────────────
@@ -817,11 +891,11 @@ class PDFService:
 
     # ── Shared helpers ───────────────────────────────────────────────────────
 
-    def _create_divider(self):
+    def _create_divider(self, color_hex: str = "#1a365d"):
         """Create a divider line as a table."""
         divider = Table([[""],], colWidths=[470])
         divider.setStyle(TableStyle([
-            ('LINEBELOW', (0, 0), (-1, 0), 2, colors.HexColor('#1a365d')),
+            ('LINEBELOW', (0, 0), (-1, 0), 2, colors.HexColor(color_hex)),
             ('LEFTPADDING', (0, 0), (-1, -1), 0),
             ('RIGHTPADDING', (0, 0), (-1, -1), 0),
             ('TOPPADDING', (0, 0), (-1, -1), 0),
