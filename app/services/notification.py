@@ -383,6 +383,144 @@ class NotificationTemplates:
         )
 
 
+    # ── Finance–Technician workflow ───────────────────────────────────────
+    #
+    # Fan-out follows the chain: submit notifies APPROVE holders, approve
+    # notifies LOAD holders, load notifies RELEASE holders, release notifies the
+    # technician. Generator refuels carry HIGH priority throughout — spec §3.2.3
+    # asks for them to be expedited, and the priority is what makes that
+    # visible in the notification list rather than only on the request itself.
+
+    @staticmethod
+    def funds_request_submitted(
+        technician_name: str,
+        request_type: str,
+        amount: str,
+        is_high_priority: bool,
+    ) -> NotificationTemplate:
+        label = NotificationTemplates._label(request_type)
+        prefix = "Urgent funds request" if is_high_priority else "Funds request"
+        return NotificationTemplate(
+            title=f"{prefix}: {label}",
+            message=(
+                f"{technician_name} requested {amount} for {label.lower()}. "
+                "Awaiting your approval."
+            ),
+            priority=(
+                NotificationPriority.HIGH
+                if is_high_priority
+                else NotificationPriority.NORMAL
+            ),
+        )
+
+    @staticmethod
+    def funds_request_approved(
+        technician_name: str, amount: str, is_high_priority: bool
+    ) -> NotificationTemplate:
+        return NotificationTemplate(
+            title="Funds approved — ready to load",
+            message=(
+                f"{amount} approved for {technician_name}. "
+                "Load the funds to move this forward."
+            ),
+            priority=(
+                NotificationPriority.HIGH
+                if is_high_priority
+                else NotificationPriority.NORMAL
+            ),
+        )
+
+    @staticmethod
+    def funds_request_loaded(
+        technician_name: str, amount: str, is_high_priority: bool
+    ) -> NotificationTemplate:
+        return NotificationTemplate(
+            title="Funds loaded — ready to release",
+            message=(
+                f"{amount} loaded for {technician_name}. "
+                "Release the funds so they can act on them."
+            ),
+            priority=(
+                NotificationPriority.HIGH
+                if is_high_priority
+                else NotificationPriority.NORMAL
+            ),
+        )
+
+    @staticmethod
+    def funds_request_released(
+        amount: str, request_type: str, is_high_priority: bool
+    ) -> NotificationTemplate:
+        label = NotificationTemplates._label(request_type)
+        return NotificationTemplate(
+            title="Funds released",
+            message=(
+                f"{amount} has been released to you for {label.lower()}. "
+                "Keep every slip — you will need them to reconcile."
+            ),
+            priority=(
+                NotificationPriority.HIGH
+                if is_high_priority
+                else NotificationPriority.NORMAL
+            ),
+        )
+
+    @staticmethod
+    def funds_request_rejected(
+        request_type: str, amount: str, reason: str | None
+    ) -> NotificationTemplate:
+        label = NotificationTemplates._label(request_type)
+        return NotificationTemplate(
+            title="Funds request rejected",
+            message=(
+                f"Your {label.lower()} request for {amount} was rejected. "
+                f"Reason: {NotificationTemplates._preview(reason)}"
+            ),
+            priority=NotificationPriority.HIGH,
+        )
+
+
+    # ── Reconciliation (spec §3.1.6–7) ────────────────────────────────────
+
+    @staticmethod
+    def reconciliation_submitted(
+        technician_name: str, total_used: str, outstanding: str
+    ) -> NotificationTemplate:
+        return NotificationTemplate(
+            title="Reconciliation submitted",
+            message=(
+                f"{technician_name} accounted for {total_used}, leaving "
+                f"{outstanding} outstanding. Review the slips to clear them for "
+                "their next request."
+            ),
+            priority=NotificationPriority.NORMAL,
+        )
+
+    @staticmethod
+    def reconciliation_approved(
+        total_used: str, outstanding: str
+    ) -> NotificationTemplate:
+        return NotificationTemplate(
+            title="Reconciliation approved",
+            message=(
+                f"Finance accepted {total_used} of spend, with {outstanding} "
+                "outstanding. You are cleared to request funds again."
+            ),
+            priority=NotificationPriority.NORMAL,
+        )
+
+    @staticmethod
+    def reconciliation_rejected(reason: str | None) -> NotificationTemplate:
+        return NotificationTemplate(
+            title="Reconciliation sent back",
+            message=(
+                "Finance returned your reconciliation. "
+                f"Reason: {NotificationTemplates._preview(reason)}"
+            ),
+            priority=NotificationPriority.HIGH,
+        )
+
+
 class _NotificationService:
     def notification_to_response(
         self, notification: Notification

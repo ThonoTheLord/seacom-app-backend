@@ -1,3 +1,4 @@
+import os
 from typing import Literal
 
 from pydantic import Field, field_validator, model_validator
@@ -28,6 +29,12 @@ class AppSettings(BaseSettings):
     # the Supabase host — e.g. a CDN in front of the bucket. IP-safety checks in
     # the SSRF guard still apply to every host listed here.
     PDF_IMAGE_ALLOWED_HOSTS: str = ""
+
+    # In development, uploads are written to disk on this machine instead of
+    # Supabase Storage (see app/services/file.py) — no cloud bucket needed for
+    # local work. This is the base URL the backend itself is reachable at, used
+    # to build the URLs handed back to clients for those local files.
+    LOCAL_UPLOAD_BASE_URL: str = "http://localhost:8000"
 
     # Security
     JWT_TOKEN_EXPIRE_MINUTES: int = 60
@@ -193,6 +200,10 @@ class AppSettings(BaseSettings):
     def is_production(self) -> bool:
         return self.ENVIRONMENT.strip().lower() == "production"
 
+    @property
+    def is_development(self) -> bool:
+        return self.ENVIRONMENT.strip().lower() == "development"
+
     @model_validator(mode="after")
     def _validate_required(self) -> "AppSettings":
         """Fail fast on missing required config instead of starting broken (H6).
@@ -224,7 +235,18 @@ class AppSettings(BaseSettings):
 
         return self
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    # ENV_FILE lets a developer point the whole app at a different env file
+    # without editing .env, which normally holds production credentials:
+    #
+    #     ENV_FILE=.env.local uv run alembic upgrade head
+    #
+    # Naming the file explicitly is the point — the alternative (swapping .env
+    # in place) leaves a window where a migration runs against production
+    # because the swap was forgotten. OS environment variables still win over
+    # whichever file is chosen, per pydantic-settings precedence.
+    model_config = SettingsConfigDict(
+        env_file=os.getenv("ENV_FILE", ".env.local"), extra="ignore"
+    )
 
 
 app_settings = AppSettings()
