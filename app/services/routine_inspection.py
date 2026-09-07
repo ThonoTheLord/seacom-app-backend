@@ -6,6 +6,7 @@ from sqlalchemy import and_
 from fastapi import Depends
 
 from app.models import (
+    InspectionGeneratorSummary,
     Notification,
     RoutineInspection,
     RoutineInspectionCreate,
@@ -22,6 +23,7 @@ from app.exceptions.http import (
     ForbiddenException,
 )
 from app.services.notification import NotificationTemplates
+from app.services.report_support import record_generator_meter_readings
 from app.utils.enums import UserRole
 
 
@@ -36,6 +38,10 @@ class _RoutineInspectionService:
         task = inspection.task if hasattr(inspection, "task") else None
 
         site_name = site.name if site else None
+        site_region = site.region if site else None
+        site_type = site.site_type if site else None
+        site_geofence_radius = site.geofence_radius if site else None
+        coords = site.get_coordinates() if site else None
         technician_fullname = (
             f"{technician.user.name} {technician.user.surname}"
             if technician and technician.user
@@ -46,9 +52,26 @@ class _RoutineInspectionService:
         return RoutineInspectionResponse(
             **inspection.model_dump(),
             site_name=site_name,
+            site_region=site_region,
+            site_type=site_type,
+            site_geofence_radius=site_geofence_radius,
+            site_latitude=coords[0] if coords else None,
+            site_longitude=coords[1] if coords else None,
             technician_fullname=technician_fullname,
             seacom_ref=seacom_ref,
+            gen1_generator=InspectionGeneratorSummary.from_generator(
+                inspection.gen1_generator
+            ),
+            gen2_generator=InspectionGeneratorSummary.from_generator(
+                inspection.gen2_generator
+            ),
         )
+
+    def _record_meter_readings(
+        self, inspection: RoutineInspection, session: Session
+    ) -> None:
+        """Delegates to the shared writeback — see report_support."""
+        record_generator_meter_readings(inspection, session)
 
     def create_inspection(
         self, data: RoutineInspectionCreate, session: Session
@@ -186,6 +209,7 @@ class _RoutineInspectionService:
 
         inspection.status = "completed"
         inspection.touch()
+        self._record_meter_readings(inspection, session)
 
         try:
             session.commit()

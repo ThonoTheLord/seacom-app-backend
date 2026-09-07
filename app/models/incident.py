@@ -127,6 +127,11 @@ class IncidentResponse(BaseDB, SQLModel):
     temporarily_restored_at: datetime | None = Field(default=None)
     permanently_restored_at: datetime | None = Field(default=None)
     site_name: str = Field(default="", description="")
+    site_region: str | None = Field(default=None, description="")
+    site_type: str | None = Field(default=None, description="")
+    site_geofence_radius: int | None = Field(
+        default=None, description="Geofence radius in meters, for map display"
+    )
     site_latitude: float | None = Field(
         default=None, description="Site latitude coordinate for map links"
     )

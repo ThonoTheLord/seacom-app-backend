@@ -428,3 +428,209 @@ def append_attachment_entry(
     items.append(entry)
     payload[bucket] = items
     return payload
+
+
+# ── Generator hour-meter writeback ───────────────────────────────────────
+
+
+def section_hour_meter_reading(data: Any, section: str) -> Any:
+    """
+    Pull `standbyHourMeterAfterTest` out of one generator section.
+
+    `data` is untyped JSONB, so nothing guarantees the shape. The web and mobile
+    forms nest the answers under `questions`, but drafts written by older
+    clients put them flat on the section — read both rather than losing a
+    reading to a shape difference.
+    """
+    if not isinstance(data, dict):
+        return None
+    block = data.get(section)
+    if not isinstance(block, dict):
+        return None
+    questions = block.get("questions")
+    if isinstance(questions, dict) and "standbyHourMeterAfterTest" in questions:
+        return questions.get("standbyHourMeterAfterTest")
+    return block.get("standbyHourMeterAfterTest")
+
+
+def record_generator_meter_readings(inspection: Any, session: Session) -> None:
+    """
+    Carry an inspection's hour-meter readings onto the units it was filled in
+    against.
+
+    This is what keeps `Generator.current_run_seconds` from going stale: the
+    inspection is the only moment someone actually reads the meter. Shared by
+    the repeater report (where inspections are really captured) and the routine
+    inspection service, so the two cannot drift apart.
+
+    Takes anything carrying `data`, `gen1_generator` and `gen2_generator` —
+    both models expose exactly that.
+
+    Two rules, both deliberate:
+
+    * An unparseable reading is skipped, not raised. The submission is the
+      technician's work and must not be rejected over a meter value.
+    * A reading is only ever carried forward, never backwards, so re-submitting
+      an older report cannot rewind a unit's meter.
+    """
+    from app.utils.funcs import parse_hour_meter
+
+    for section, generator in (
+        ("gen1", getattr(inspection, "gen1_generator", None)),
+        ("gen2", getattr(inspection, "gen2_generator", None)),
+    ):
+        if generator is None:
+            continue
+        seconds = parse_hour_meter(
+            section_hour_meter_reading(getattr(inspection, "data", None), section)
+        )
+        if seconds is None:
+            continue
+        if (
+            generator.current_run_seconds is not None
+            and seconds <= generator.current_run_seconds
+        ):
+            continue
+        generator.current_run_seconds = seconds
+        generator.touch()
+        session.add(generator)
+
+
+# ── Diesel fill-up reading ───────────────────────────────────────────────
+#
+# Shared by the per-site history (ReportService) and the per-generator history
+# (GeneratorService). Extracted rather than duplicated: the two views must
+# agree on what a fill-up is, and `coerce_diesel_gen_no`'s rule — an entry with
+# no usable gen_no lands in generator 1 — has to be applied identically or the
+# same fill would appear under different units in the two screens.
+
+
+def diesel_reports_for_site(
+    session: Session,
+    site_id: Any,
+    date_from: Any = None,
+    date_to: Any = None,
+) -> list[Any]:
+    """Completed diesel reports for one site, oldest first.
+
+    Reports reach a site only through their task, so this joins rather than
+    filtering on the report. A site accumulates roughly one visit a week, so
+    the row count stays small and the JSONB has to cross the wire either way.
+    """
+    from sqlalchemy.orm import selectinload
+    from sqlmodel import select
+
+    from app.models import Report, Task, Technician
+    from app.utils.enums import ReportStatus, ReportType
+
+    conditions = [
+        Report.report_type == ReportType.DIESEL,
+        Report.status == ReportStatus.COMPLETED,
+        Report.deleted_at.is_(None),  # type: ignore[union-attr]
+        Task.site_id == site_id,
+    ]
+    if date_from is not None:
+        conditions.append(Report.created_at >= date_from)  # type: ignore[arg-type]
+    if date_to is not None:
+        conditions.append(Report.created_at <= date_to)  # type: ignore[arg-type]
+
+    statement = (
+        select(Report)
+        .join(Task, Task.id == Report.task_id)  # type: ignore[arg-type]
+        .options(
+            selectinload(Report.task).selectinload(Task.site),  # type: ignore[arg-type]
+            selectinload(Report.technician).selectinload(Technician.user),  # type: ignore[arg-type]
+        )
+        .where(*conditions)
+        .order_by(Report.created_at)  # type: ignore[arg-type]
+    )
+    return list(session.exec(statement).all())
+
+
+def flatten_diesel_fillups(reports: list[Any]) -> list[Any]:
+    """Flatten each report's `data.diesel_fillups` into DieselHistoryEntry rows.
+
+    One entry per fill-up, carrying the fields that live on the owning report
+    (date, technician, ticket ref) alongside the ones inside the array.
+    """
+    from app.models.report_data import DieselHistoryEntry
+    from app.utils.funcs import format_iso_week
+
+    entries: list[Any] = []
+    for report in reports:
+        data = report.data if isinstance(report.data, dict) else {}
+        fillups = data.get("diesel_fillups")
+        if not isinstance(fillups, list):
+            continue
+
+        technician_name = None
+        if report.technician and report.technician.user:
+            technician_name = (
+                f"{report.technician.user.name} {report.technician.user.surname}"
+            )
+        seacom_ref = report.seacom_ref or (
+            report.task.seacom_ref if report.task else None
+        )
+
+        for raw in fillups:
+            if not isinstance(raw, dict):
+                continue
+            gen_no, inferred = coerce_diesel_gen_no(raw.get("gen_no"))
+            entries.append(
+                DieselHistoryEntry(
+                    report_id=str(report.id),
+                    fill_date=report.created_at,
+                    iso_week=format_iso_week(report.created_at),
+                    gen_no=gen_no,
+                    gen_no_inferred=inferred,
+                    liters_filled=coerce_diesel_number(raw.get("liters_filled")),
+                    amount_used=coerce_diesel_number(raw.get("amount_used")),
+                    fill_reason=(
+                        str(raw["fill_reason"]) if raw.get("fill_reason") else None
+                    ),
+                    gen_runtime_hours=raw.get("gen_runtime_hours"),
+                    technician_name=technician_name,
+                    seacom_ref=seacom_ref,
+                )
+            )
+    return entries
+
+
+def assert_site_history_in_scope(
+    site_id: Any, current_user: Any, session: Session
+) -> None:
+    """
+    Narrow technicians to their assigned sites.
+
+    Per-report export already restricts a technician to their own reports.
+    History spans every technician's fill-ups, so the equivalent boundary is
+    site assignment. Shared by the per-site and per-generator histories so a
+    technician cannot reach through one what the other denies them.
+    """
+    from app.exceptions.http import ForbiddenException, NotFoundException
+    from app.models import Technician, TechnicianSite
+    from app.utils.enums import UserRole
+    from sqlmodel import select
+
+    if current_user.role != UserRole.TECHNICIAN:
+        return
+
+    technician = session.exec(
+        select(Technician).where(
+            Technician.user_id == current_user.user_id,
+            Technician.deleted_at.is_(None),  # type: ignore
+        )
+    ).first()
+    if not technician:
+        raise NotFoundException("technician profile not found for current user")
+
+    assignment = session.exec(
+        select(TechnicianSite).where(
+            TechnicianSite.technician_id == technician.id,
+            TechnicianSite.site_id == site_id,
+        )
+    ).first()
+    if assignment is None:
+        raise ForbiddenException(
+            "Technicians can only view diesel history for their assigned sites"
+        )
