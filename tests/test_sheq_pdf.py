@@ -112,6 +112,11 @@ def test_vehicle_daily_renders_without_exception() -> None:
 
     extracted = extract_text(pdf_bytes).upper()
     assert "COMPANY VEHICLE DAILY CHECKLIST" in extracted
+    assert "SAMO ENGINEERING" in extracted
+    assert "THABO NKOSI" in extracted
+    assert "CA 123-456" in extracted
+    assert "10000" in extracted  # odometer start
+    assert "10050" in extracted  # odometer end
     assert "TYRES (PRESSURE, TREAD, DAMAGE)" in extracted
     assert "BRAKES (FOOT & HAND)" in extracted
     assert "REAR PADS WORN" in extracted

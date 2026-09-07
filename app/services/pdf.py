@@ -7011,6 +7011,28 @@ class PDFService:
     ) -> None:
         data = submission.data or {}
 
+        story.extend(self._repeater_section_header("Vehicle Details", primary_hex, accent_hex))
+        odometer_start = data.get("odometer_start")
+        odometer_end = data.get("odometer_end")
+        distance_travelled = (
+            odometer_end - odometer_start
+            if isinstance(odometer_start, (int, float)) and isinstance(odometer_end, (int, float))
+            else None
+        )
+        story.append(
+            self._build_field_kv_table(
+                [
+                    ("Company", self._text_value(data.get("company_name"))),
+                    ("Driver", self._text_value(data.get("driver_name"))),
+                    ("Vehicle Registration", self._text_value(data.get("vehicle_registration"))),
+                    ("Odometer Start", self._text_value(odometer_start)),
+                    ("Odometer End", self._text_value(odometer_end)),
+                    ("Distance Travelled", self._text_value(distance_travelled)),
+                ]
+            )
+        )
+        story.append(Spacer(1, 4 * mm))
+
         story.extend(self._repeater_section_header("A. Pre-Trip Inspection", primary_hex, accent_hex))
         pre_trip = data.get("pre_trip") or {}
         section_data = {}
